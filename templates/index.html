@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ライブ掲示板 - スレ一覧</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #f8f9fa; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .thread-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .thread-link { text-decoration: none; color: #333; font-weight: bold; flex-grow: 1; }
+        .delete-btn { color: #dc3545; text-decoration: none; font-size: 0.8em; margin-left: 10px; border: 1px solid #dc3545; padding: 2px 5px; border-radius: 4px; }
+        .create-form { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+        input[type="text"] { width: 70%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .auth-links a { margin-left: 10px; text-decoration: none; color: #007bff; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>掲示板</h1>
+        <div class="auth-links">
+            {% if current_user.is_authenticated %}
+                <span>こんにちは、{{ current_user.username }}さん</span>
+                <a href="/logout">ログアウト</a>
+            {% else %}
+                <a href="/login">ログイン</a>
+                <a href="/signup">新規登録</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if current_user.is_authenticated %}
+    <div class="create-form">
+        <h3>新しいスレッドを作る</h3>
+        <form action="/create_thread" method="POST">
+            <input type="text" name="title" placeholder="スレッドのタイトルを入力" required>
+            <button type="submit">作成</button>
+        </form>
+    </div>
+    {% else %}
+    <p style="color: #666;">※スレッド作成や投稿にはログインが必要です。</p>
+    {% endif %}
+
+    <h2>スレッド一覧</h2>
+    <div id="thread-list">
+        {% for thread in threads %}
+        <div class="thread-card">
+            <a href="/thread/{{ thread.id }}" class="thread-link">{{ thread.title }}</a>
+            {% if current_user.is_authenticated %}
+            <a href="/delete_thread/{{ thread.id }}" class="delete-btn" onclick="return confirm('スレッド全体を削除しますか？')">スレ削除</a>
+            {% endif %}
+        </div>
+        {% else %}
+        <p>まだスレッドがありません。</p>
+        {% endfor %}
+    </div>
+
+</body>
+</html>
