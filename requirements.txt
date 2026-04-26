@@ -2,5 +2,6 @@ flask
 flask-sqlalchemy
 flask-login
 flask-socketio
-eventlet
+gevent
+gevent-websocket
 gunicorn
