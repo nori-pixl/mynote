@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - ライブ掲示板</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
+        .login-container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background 0.3s; }
+        button:hover { background-color: #0056b3; }
+        .footer-text { text-align: center; margin-top: 20px; font-size: 14px; color: #666; }
+        .footer-text a { color: #007bff; text-decoration: none; }
+        .flash-messages { color: #dc3545; font-size: 14px; margin-bottom: 15px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <h2>ログイン</h2>
+
+    <!-- エラーメッセージの表示 -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for message in messages %}{{ message }}{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <input type="text" name="username" placeholder="ユーザー名" required autofocus>
+        <input type="password" name="password" placeholder="パスワード" required>
+        <button type="submit">ログイン</button>
+    </form>
+
+    <div class="footer-text">
+        アカウントをお持ちでないですか？ <br>
+        <a href="/signup">新規登録はこちら</a>
+    </div>
+    <div class="footer-text">
+        <a href="/">← 掲示板トップに戻る</a>
+    </div>
+</div>
+
+</body>
+</html>
