@@ -59,6 +59,33 @@
         <p>まだ投稿がありません。</p>
         {% endfor %}
     </div>
+    <!-- Socket.ioの読み込み -->
+<script src="https://socket.io"></script>
+
+<script>
+    var socket = io();
+    
+    // このスレッド専用の部屋に入る
+    socket.emit('join', {room: 'thread_{{ thread.id }}'});
+
+    // 新しい投稿が届いたら実行
+    socket.on('new_post', function(data) {
+        var postHtml = `
+            <div class="post">
+                <div class="post-info">
+                    <span><strong>${data.username}</strong> さんの投稿</span>
+                    <span>${data.created_at}</span>
+                </div>
+                <div class="post-content">${data.content}</div>
+                ${data.image ? `<img src="/uploads/${data.image}" class="post-image">` : ''}
+            </div>
+        `;
+        // 一番下に新着を追加
+        document.getElementById('posts-container').insertAdjacentHTML('beforeend', postHtml);
+        // 自動で下までスクロール
+        window.scrollTo(0, document.body.scrollHeight);
+    });
+</script>
 
     <script>
         // 5秒ごとにページを最新の状態に更新してライブ感を出す
