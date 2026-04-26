@@ -5,7 +5,26 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from flask_socketio import SocketIO, emit # 追加
 
+# app = Flask(__name__) のすぐ下に追加
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# 投稿ルートを修正（または新しい関数を作成）
+@app.route('/thread/<int:thread_id>', methods=['POST'])
+@login_required
+def post_message(thread_id):
+    # ...（これまでの投稿保存処理はそのまま）...
+    
+    # データベース保存に成功したら、Socket.ioで全員に送信！
+    socketio.emit('new_post', {
+        'content': content,
+        'username': current_user.username,
+        'image': filename, # 画像がある場合
+        'created_at': datetime.now().strftime('%Y/%m/%d %H:%M')
+    }, room=f'thread_{thread_id}')
+    
+    return "OK", 200
 app = Flask(__name__)
 
 # --- 設定 ---
@@ -146,6 +165,5 @@ def uploaded_file(filename):
 with app.app_context():
     db.create_all()
 
-if __name__ == '__main__':
-    # 0.0.0.0で起動することでスマホからのアクセスも可能に
-    app.run(host='0.0.0.0', port=5000, debug=True)
+__name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
