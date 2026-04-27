@@ -1,4 +1,4 @@
-import os
+import os, random, string
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
@@ -7,28 +7,41 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori-secret-key-777'
-
-# 保存先設定
+app.config['SECRET_KEY'] = 'nori-class-list-secret'
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(UPLOAD_FOLDER, 'bbs.db')
-app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024 # 30MBまで
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# データベースクラス
+# --- データベースモデル ---
+
+# ユーザーとクラスを紐付けるテーブル
+subs = db.Table('subs',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('classroom_id', db.Integer, db.ForeignKey('classroom.id'))
+)
+
+class Classroom(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    threads = db.relationship('Thread', backref='classroom', cascade="all, delete")
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+    # 参加しているクラスのリスト
+    classrooms = db.relationship('Classroom', secondary=subs, backref=db.backref('members', lazy='dynamic'))
 
 class Thread(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('classroom.id'))
     created_at = db.Column(db.DateTime, default=datetime.now)
     posts = db.relationship('Post', backref='thread', cascade="all, delete")
 
@@ -41,21 +54,76 @@ class Post(db.Model):
     thread_id = db.Column(db.Integer, db.ForeignKey('thread.id'))
     author = db.relationship('User', backref='user_posts')
 
+class Reaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(20))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+
 @login_manager.user_loader
 def load_user(id): return User.query.get(int(id))
 
-# --- ルート ---
+# --- ルート設定 ---
+
 @app.route('/')
+@login_required
 def index():
-    threads = Thread.query.order_by(Thread.created_at.desc()).all()
-    return render_template('index.html', threads=threads)
+    # 自分のクラスリストを表示
+    return render_template('index.html', Reaction=Reaction)
+
+@app.route('/class/<int:class_id>')
+@login_required
+def class_view(class_id):
+    target_class = Classroom.query.get_or_404(class_id)
+    if target_class not in current_user.classrooms:
+        return "アクセス権がありません", 403
+    threads = Thread.query.filter_by(class_id=class_id).order_by(Thread.created_at.desc()).all()
+    return render_template('class_view.html', target_class=target_class, threads=threads)
+
+@app.route('/manage_class', methods=['POST'])
+@login_required
+def manage_class():
+    action = request.form.get('action')
+    if action == 'create':
+        name = request.form.get('name')
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+        new_class = Classroom(name=name, code=code)
+        current_user.classrooms.append(new_class)
+        db.session.add(new_class)
+        db.session.commit()
+        flash(f'クラス作成完了！コード: {code}')
+    elif action == 'join':
+        code = request.form.get('code').upper()
+        target = Classroom.query.filter_by(code=code).first()
+        if target:
+            if target not in current_user.classrooms:
+                current_user.classrooms.append(target)
+                db.session.commit()
+            else:
+                flash('すでに参加しています')
+        else:
+            flash('コードが違います')
+    return redirect(url_for('index'))
+
+@app.route('/create_thread/<int:class_id>', methods=['POST'])
+@login_required
+def create_thread(class_id):
+    t = request.form.get('title')
+    if t:
+        db.session.add(Thread(title=t, class_id=class_id))
+        db.session.commit()
+    return redirect(url_for('class_view', class_id=class_id))
+
+# --- 他のルート（signup, login, thread_detail, react等）は前回のものをそのまま使用 ---
+# ※ thread_detail内の class_id チェックだけ current_user.classrooms を使うように修正
+# -------------------------------------------------------------------------
+# ... (中略: signup, login, logout, uploads 等の基本機能) ...
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         u = request.form.get('username'); p = request.form.get('password')
-        if User.query.filter_by(username=u).first():
-            flash('名前が重複しています'); return redirect(url_for('signup'))
+        if User.query.filter_by(username=u).first(): return redirect(url_for('signup'))
         db.session.add(User(username=u, password=generate_password_hash(p)))
         db.session.commit()
         return redirect(url_for('login'))
@@ -68,33 +136,31 @@ def login():
         user = User.query.filter_by(username=u).first()
         if user and check_password_hash(user.password, p):
             login_user(user); return redirect(url_for('index'))
-        flash('ログイン失敗')
     return render_template('login.html')
 
-@app.route('/logout')
-def logout(): logout_user(); return redirect(url_for('index'))
-
-@app.route('/create_thread', methods=['POST'])
-@login_required
-def create_thread():
-    t = request.form.get('title')
-    if t: db.session.add(Thread(title=t)); db.session.commit()
-    return redirect(url_for('index'))
-
 @app.route('/thread/<int:thread_id>', methods=['GET', 'POST'])
+@login_required
 def thread_detail(thread_id):
     thread = Thread.query.get_or_404(thread_id)
+    if thread.classroom not in current_user.classrooms: return "Access Denied", 403
     if request.method == 'POST':
-        if not current_user.is_authenticated: return redirect(url_for('login'))
         c = request.form.get('content'); f = request.files.get('image'); fname = None
         if f and f.filename != '':
-            fname = secure_filename(f.filename)
-            f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            fname = secure_filename(f.filename); f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
         db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id))
         db.session.commit()
         return redirect(url_for('thread_detail', thread_id=thread.id))
     posts = Post.query.filter_by(thread_id=thread_id).order_by(Post.created_at.asc()).all()
-    return render_template('thread.html', thread=thread, posts=posts)
+    return render_template('thread.html', thread=thread, posts=posts, Reaction=Reaction)
+
+@app.route('/react/<int:post_id>/<string:reac_type>')
+@login_required
+def react(post_id, reac_type):
+    existing = Reaction.query.filter_by(user_id=current_user.id, post_id=post_id, type=reac_type).first()
+    if existing: db.session.delete(existing)
+    else: db.session.add(Reaction(user_id=current_user.id, post_id=post_id, type=reac_type))
+    db.session.commit()
+    return redirect(request.referrer)
 
 @app.route('/delete_post/<int:post_id>')
 @login_required
@@ -103,24 +169,14 @@ def delete_post(post_id):
     db.session.delete(p); db.session.commit()
     return redirect(url_for('thread_detail', thread_id=tid))
 
-@app.route('/delete_thread/<int:thread_id>')
-@login_required
-def delete_thread(thread_id):
-    t = Thread.query.get_or_404(thread_id)
-    db.session.delete(t); db.session.commit()
-    return redirect(url_for('index'))
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-@app.route('/call/<int:thread_id>')
-@login_required
-def call_page(thread_id):
-    thread = Thread.query.get_or_404(thread_id)
-    return render_template('call.html', thread=thread)
+
+@app.route('/logout')
+def logout(): logout_user(); return redirect(url_for('index'))
 
 with app.app_context(): db.create_all()
-
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
