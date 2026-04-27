@@ -119,15 +119,31 @@ def create_thread(class_id):
 # -------------------------------------------------------------------------
 # ... (中略: signup, login, logout, uploads 等の基本機能) ...
 
+# --- app.py の signup 関数を修正 ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         u = request.form.get('username'); p = request.form.get('password')
         if User.query.filter_by(username=u).first(): return redirect(url_for('signup'))
-        db.session.add(User(username=u, password=generate_password_hash(p)))
+        
+        # 新しいユーザーを作成
+        new_user = User(username=u, password=generate_password_hash(p))
+        
+        # 「全員用」という名前のクラスを探す、なければ作る
+        public_class = Classroom.query.filter_by(code='PUBLIC').first()
+        if not public_class:
+            public_class = Classroom(name='全員掲示板（ロビー）', code='PUBLIC')
+            db.session.add(public_class)
+            db.session.flush()
+        
+        # ユーザーを全員用クラスに所属させる
+        new_user.classrooms.append(public_class)
+        
+        db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login'))
     return render_template('signup.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
