@@ -34,18 +34,33 @@
 
     <h3>参加中の掲示板</h3>
     {% for c in current_user.classrooms %}
-    <div class="class-card {{ 'public-card' if c.code == 'PUBLIC' else '' }}">
-        <div>
-            <strong style="font-size: 1.1em;">{{ c.name }}</strong><br>
-            <small style="color:#888;">{{ '🌎 全員参加' if c.code == 'PUBLIC' else '🔑 コード: ' + c.code }}</small>
-        </div>
-        <a href="/class/{{ c.id }}" style="text-decoration:none; color:#007bff; font-weight:bold;">入室 →</a>
+    <!-- index.html の class-card の中を修正 -->
+<div class="class-card {{ 'public' if c.code == 'PUBLIC' else 'private' }}">
+    <div class="class-info">
+        <strong>{{ c.name }}</strong>
+        <small>
+            {% if c.code == 'PUBLIC' %}
+                🌍 誰でも見れる掲示板
+            {% else %}
+                🔑 コード: {{ c.code }}
+            {% endif %}
+        </small>
     </div>
-    {% endfor %}
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <a href="/class/{{ c.id }}" class="enter-link">入室 →</a>
+        
+        {# 全員掲示板以外には削除ボタンを出す #}
+        {% if c.code != 'PUBLIC' %}
+        <a href="/delete_class/{{ c.id }}" 
+           onclick="return confirm('クラス内の全データが消えます。本当に削除しますか？')" 
+           style="color: #ff4d4d; text-decoration: none; font-size: 18px;" title="クラスを削除">
+           🗑
+        </a>
+        {% endif %}
+    </div>
+</div>
 
-    <div style="text-align:center; margin-top:30px;">
-        <a href="/logout" style="color:red; text-decoration:none;">ログアウト</a>
-    </div>
 </div>
 </body>
 </html>
