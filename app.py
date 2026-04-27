@@ -106,6 +106,11 @@ def login():
         flash('ログイン失敗')
     return render_template('login.html')
 
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
 @app.route('/manage_class', methods=['POST'])
 @login_required
 def manage_class():
@@ -128,6 +133,16 @@ def manage_class():
             flash('コードが違います')
     return redirect(url_for('index'))
 
+@app.route('/delete_class/<int:class_id>')
+@login_required
+def delete_class(class_id):
+    target_class = Classroom.query.get_or_404(class_id)
+    if target_class.code == 'PUBLIC':
+        return redirect(url_for('index'))
+    db.session.delete(target_class)
+    db.session.commit()
+    return redirect(url_for('index'))
+
 @app.route('/class/<int:class_id>')
 @login_required
 def class_view(class_id):
@@ -146,13 +161,21 @@ def create_thread(class_id):
         db.session.commit()
     return redirect(url_for('class_view', class_id=class_id))
 
+@app.route('/delete_thread/<int:thread_id>')
+@login_required
+def delete_thread(thread_id):
+    thread = Thread.query.get_or_404(thread_id)
+    cid = thread.class_id
+    db.session.delete(thread)
+    db.session.commit()
+    return redirect(url_for('class_view', class_id=cid))
+
 @app.route('/thread/<int:thread_id>', methods=['GET', 'POST'])
 @login_required
 def thread_detail(thread_id):
     thread = Thread.query.get_or_404(thread_id)
     if thread.classroom_ref not in current_user.classrooms:
         return "Access Denied", 403
-    
     if request.method == 'POST':
         c = request.form.get('content')
         f = request.files.get('image')
@@ -163,9 +186,17 @@ def thread_detail(thread_id):
         db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id))
         db.session.commit()
         return redirect(url_for('thread_detail', thread_id=thread.id))
-    
     posts = Post.query.filter_by(thread_id=thread_id).order_by(Post.created_at.asc()).all()
     return render_template('thread.html', thread=thread, posts=posts, Reaction=Reaction)
+
+@app.route('/delete_post/<int:post_id>')
+@login_required
+def delete_post(post_id):
+    post = Post.query.get_or_404(post_id)
+    tid = post.thread_id
+    db.session.delete(post)
+    db.session.commit()
+    return redirect(url_for('thread_detail', thread_id=tid))
 
 @app.route('/react/<int:post_id>/<string:reac_type>')
 @login_required
@@ -178,49 +209,9 @@ def react(post_id, reac_type):
     db.session.commit()
     return redirect(request.referrer)
 
-@app.route('/delete_post/<int:post_id>')
-@login_required
-def delete_post(post_id):
-    post = Post.query.get_or_404(post_id)
-    tid = post.thread_id
-    db.session.delete(post)
-    db.session.commit()
-    return redirect(url_for('thread_detail', thread_id=tid))
-
-@app.route('/delete_thread/<int:thread_id>')
-@login_required
-def delete_thread(thread_id):
-    thread = Thread.query.get_or_404(thread_id)
-    cid = thread.class_id
-    db.session.delete(thread)
-    db.session.commit()
-    return redirect(url_for('class_view', class_id=cid))
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
-    @app.route('/delete_class/<int:class_id>')
-@login_required
-def delete_class(class_id):
-    # 削除したいクラスを取得
-    target_class = Classroom.query.get_or_404(class_id)
-    
-    # 全員掲示板（PUBLIC）は削除できないようにガードをかける
-    if target_class.code == 'PUBLIC':
-        flash('全員掲示板は削除できません。')
-        return redirect(url_for('index'))
-    
-    # クラスを削除（紐付いているスレッドや投稿も連鎖して消えます）
-    db.session.delete(target_class)
-    db.session.commit()
-    
-    return redirect(url_for('index'))
-
 
 with app.app_context():
     db.create_all()
