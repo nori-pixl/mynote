@@ -113,6 +113,11 @@ def delete_thread(thread_id):
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+@app.route('/call/<int:thread_id>')
+@login_required
+def call_page(thread_id):
+    thread = Thread.query.get_or_404(thread_id)
+    return render_template('call.html', thread=thread)
 
 with app.app_context(): db.create_all()
 
