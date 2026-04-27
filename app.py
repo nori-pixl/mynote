@@ -98,6 +98,13 @@ def delete_post(post_id):
     p = Post.query.get_or_404(post_id); tid = p.thread_id
     db.session.delete(p); db.session.commit()
     return redirect(url_for('thread_detail', thread_id=tid))
+@app.route('/delete_thread/<int:thread_id>')
+@login_required
+def delete_thread(thread_id):
+    thread = Thread.query.get_or_404(thread_id)
+    db.session.delete(thread)
+    db.session.commit()
+    return redirect(url_for('index'))
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
