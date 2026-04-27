@@ -7,6 +7,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+# app.py の app = Flask(__name__) のすぐ下に追加・修正
+app.config['SECRET_KEY'] = 'nori_bbs_fixed_secret_key_2024' # ここを絶対に固定する
+app.config['SESSION_COOKIE_NAME'] = 'nori_bbs_session'
+app.config['REMEMBER_COOKIE_NAME'] = 'nori_bbs_remember'
+app.config['SESSION_PERMANENT'] = True
 
 # --- 設定 ---
 # 秘密鍵を固定することで自動ログインを安定させます
