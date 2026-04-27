@@ -7,17 +7,20 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'my-secret-key-safe'
+app.config['SECRET_KEY'] = 'nori-secret-key-777'
+
+# 保存先設定
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(UPLOAD_FOLDER, 'bbs.db')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-
+app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024 # 30MBまで
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# データベースクラス
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -39,9 +42,9 @@ class Post(db.Model):
     author = db.relationship('User', backref='user_posts')
 
 @login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+def load_user(id): return User.query.get(int(id))
 
+# --- ルート ---
 @app.route('/')
 def index():
     threads = Thread.query.order_by(Thread.created_at.desc()).all()
@@ -51,7 +54,8 @@ def index():
 def signup():
     if request.method == 'POST':
         u = request.form.get('username'); p = request.form.get('password')
-        if User.query.filter_by(username=u).first(): return redirect(url_for('signup'))
+        if User.query.filter_by(username=u).first():
+            flash('名前が重複しています'); return redirect(url_for('signup'))
         db.session.add(User(username=u, password=generate_password_hash(p)))
         db.session.commit()
         return redirect(url_for('login'))
@@ -64,6 +68,7 @@ def login():
         user = User.query.filter_by(username=u).first()
         if user and check_password_hash(user.password, p):
             login_user(user); return redirect(url_for('index'))
+        flash('ログイン失敗')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -88,7 +93,6 @@ def thread_detail(thread_id):
         db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id))
         db.session.commit()
         return redirect(url_for('thread_detail', thread_id=thread.id))
-    # 古い順（下へ追加）に並べ替え
     posts = Post.query.filter_by(thread_id=thread_id).order_by(Post.created_at.asc()).all()
     return render_template('thread.html', thread=thread, posts=posts)
 
@@ -98,20 +102,19 @@ def delete_post(post_id):
     p = Post.query.get_or_404(post_id); tid = p.thread_id
     db.session.delete(p); db.session.commit()
     return redirect(url_for('thread_detail', thread_id=tid))
+
 @app.route('/delete_thread/<int:thread_id>')
 @login_required
 def delete_thread(thread_id):
-    thread = Thread.query.get_or_404(thread_id)
-    db.session.delete(thread)
-    db.session.commit()
+    t = Thread.query.get_or_404(thread_id)
+    db.session.delete(t); db.session.commit()
     return redirect(url_for('index'))
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-with app.app_context():
-    db.create_all()
+with app.app_context(): db.create_all()
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
