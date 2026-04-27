@@ -1,88 +1,51 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>マイクラス掲示板</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: #333; }
-        .container { max-width: 600px; margin: auto; padding: 20px; }
-        .user-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        
-        /* 作成・参加ボックス */
-        .manage-box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .manage-box h3 { margin-top: 0; font-size: 16px; color: #555; }
-        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; font-size: 14px; white-space: nowrap; transition: 0.2s; }
-        .btn-join { background: #007bff; }
-        .btn-create { background: #28a745; }
-        .btn:hover { opacity: 0.8; }
-
-        /* クラスカード */
-        .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid #007bff; padding-left: 10px; }
-        .class-card { background: white; padding: 18px; border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee; }
-        .class-card.public { border-left: 6px solid #ffc107; } /* 全員用は黄色 */
-        .class-card.private { border-left: 6px solid #007bff; } /* クラス用は青 */
-        
-        .class-info strong { font-size: 1.1em; display: block; margin-bottom: 4px; }
-        .class-info small { color: #888; font-size: 12px; }
-        .enter-link { background: #f0f2f5; color: #007bff; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; }
-        .enter-link:hover { background: #007bff; color: white; }
-
-        .logout-link { display: block; text-align: center; margin-top: 30px; color: #ff4d4d; text-decoration: none; font-size: 14px; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        .box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .input-group { display: flex; gap: 10px; margin-top: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn { padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
+        .class-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #007bff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .public-card { border-left-color: #28a745; }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <div class="user-header">
-        <h1 style="font-size: 20px;">こんにちは、{{ current_user.username }}さん</h1>
-    </div>
-
-    <!-- クラス管理エリア -->
-    <div class="manage-box">
+    <h2>こんにちは、{{ current_user.username }}さん</h2>
+    
+    <div class="box">
         <form action="/manage_class" method="POST">
-            <h3>クラスに参加する</h3>
+            <strong>クラスに参加・作成</strong>
             <div class="input-group">
-                <input type="text" name="code" placeholder="クラスコードを入力">
-                <button type="submit" name="action" value="join" class="btn btn-join">参加</button>
+                <input type="text" name="code" placeholder="コードを入力">
+                <button type="submit" name="action" value="join" class="btn" style="background:#007bff;">参加</button>
             </div>
-            
-            <h3 style="margin-top: 20px;">新しいクラスを作る</h3>
             <div class="input-group">
-                <input type="text" name="name" placeholder="クラス名を入力">
-                <button type="submit" name="action" value="create" class="btn btn-create">作成</button>
+                <input type="text" name="name" placeholder="新しいクラス名">
+                <button type="submit" name="action" value="create" class="btn" style="background:#28a745;">作成</button>
             </div>
         </form>
     </div>
 
-    <!-- リスト表示エリア -->
-    <div class="section-title">参加中の掲示板</div>
-
+    <h3>参加中の掲示板</h3>
     {% for c in current_user.classrooms %}
-    <div class="class-card {{ 'public' if c.code == 'PUBLIC' else 'private' }}">
-        <div class="class-info">
-            <strong>{{ c.name }}</strong>
-            <small>
-                {% if c.code == 'PUBLIC' %}
-                     誰でも見れる掲示板
-                {% else %}
-                     コード: {{ c.code }}
-                {% endif %}
-            </small>
+    <div class="class-card {{ 'public-card' if c.code == 'PUBLIC' else '' }}">
+        <div>
+            <strong style="font-size: 1.1em;">{{ c.name }}</strong><br>
+            <small style="color:#888;">{{ '🌎 全員参加' if c.code == 'PUBLIC' else '🔑 コード: ' + c.code }}</small>
         </div>
-        <a href="/class/{{ c.id }}" class="enter-link">入室 →</a>
-    </div>
-    {% else %}
-    <div style="text-align: center; color: #888; margin-top: 20px;">
-        参加中の掲示板はありません。<br>
-        上のフォームから参加または作成してください。
+        <a href="/class/{{ c.id }}" style="text-decoration:none; color:#007bff; font-weight:bold;">入室 →</a>
     </div>
     {% endfor %}
 
-    <a href="/logout" class="logout-link">ログアウト</a>
+    <div style="text-align:center; margin-top:30px;">
+        <a href="/logout" style="color:red; text-decoration:none;">ログアウト</a>
+    </div>
 </div>
-
 </body>
 </html>
