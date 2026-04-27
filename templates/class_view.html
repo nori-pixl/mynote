@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ target_class.name }}</title>
+    <style>body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }</style>
+</head>
+<body>
+    <a href="/">← クラス一覧に戻る</a>
+    <h1>{{ target_class.name }} の掲示板</h1>
+
+    <form action="/create_thread/{{ target_class.id }}" method="POST" style="margin-bottom:20px;">
+        <input type="text" name="title" placeholder="新しいスレッドのタイトル" required>
+        <button type="submit">スレッド作成</button>
+    </form>
+
+    {% for t in threads %}
+    <div style="background:white; padding:15px; border-radius:8px; margin-bottom:10px;">
+        <a href="/thread/{{ t.id }}" style="text-decoration:none; color:#333; font-weight:bold;">{{ t.title }}</a>
+        <small style="color:#999; float:right;">{{ t.created_at.strftime('%Y/%m/%d') }}</small>
+    </div>
+    {% endfor %}
+</body>
+</html>
