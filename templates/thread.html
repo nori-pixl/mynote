@@ -1,73 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ thread.title }}</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 15px; background: #f0f2f5; }
-        .post { background: white; padding: 10px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .post-info { font-size: 0.8em; color: #666; margin-bottom: 5px; }
-        .media { max-width: 100%; border-radius: 8px; margin-top: 10px; }
-        .form-area { background: #fff; padding: 15px; border-radius: 8px; position: sticky; top: 0; z-index: 10; margin-bottom: 20px; }
-        textarea { width: 100%; height: 60px; }
+        body { font-family: sans-serif; margin: 0; padding-bottom: 120px; background: #f0f2f5; }
+        .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .btn-call { background: #28a745; color: white; text-decoration: none; padding: 8px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+        .posts { padding: 15px; }
+        .post { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .post-info { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .media { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; box-sizing: border-box; }
+        textarea { width: 100%; height: 50px; border-radius: 8px; border: 1px solid #ccc; padding: 8px; box-sizing: border-box; }
+        .btn-send { background: #007bff; color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; margin-top: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <a href="/">← 戻る</a>
-    <h1>{{ thread.title }}</h1>
-<!-- thread.html のボタン部分を書き換え -->
-<a href="/call/{{ thread.id }}" target="_blank" 
-   style="background:#28a745; color:#fff; text-decoration:none; padding:5px 10px; border-radius:5px; float: right; font-size: 12px;">
-   📹 通話を開始
-</a>
 
-    <div id="meet-container" style="width:100%; height:400px; display:none; margin-bottom:20px;"></div>
-
+<div class="header">
+    <a href="/" style="text-decoration: none; color: #007bff;">← 戻る</a>
+    <span style="font-weight: bold;">{{ thread.title }}</span>
+    
+    <!-- ビデオボタン：ログインしている時だけ表示 -->
     {% if current_user.is_authenticated %}
-    <div class="form-area">
-        <form method="POST" enctype="multipart/form-data">
-            <textarea name="content" placeholder="メッセージ" required></textarea>
-            <input type="file" name="image" accept="image/*,video/*">
-            <button type="submit" style="width:100%; padding:10px; margin-top:5px; background:#007bff; color:#fff; border:none;">書き込む</button>
-        </form>
-    </div>
+        <a href="/call/{{ thread.id }}" target="_blank" class="btn-call">📹 ビデオ通話</a>
     {% endif %}
+</div>
 
-    <div id="posts">
-        {% for post in posts %}
-        <div class="post">
-            <div class="post-info"><strong>{{ post.author.username }}</strong> | {{ post.created_at.strftime('%H:%M') }}</div>
-            <div>{{ post.content }}</div>
-            {% if post.image_path %}
-                {% set ext = post.image_path.split('.')[-1].lower() %}
-                {% if ext in ['mp4', 'mov', 'webm'] %}
-                    <video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
-                {% else %}
-                    <img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">
-                {% endif %}
+<div class="posts" id="post-list">
+    {% for post in posts %}
+    <div class="post">
+        <div class="post-info"><strong>{{ post.author.username }}</strong> | {{ post.created_at.strftime('%H:%M') }}</div>
+        <div style="white-space: pre-wrap;">{{ post.content }}</div>
+        {% if post.image_path %}
+            {% set ext = post.image_path.split('.')[-1].lower() %}
+            {% if ext in ['mp4', 'mov', 'webm'] %}
+                <video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
+            {% else %}
+                <img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">
             {% endif %}
-            {% if current_user.is_authenticated %}
-                <div style="text-align:right"><a href="/delete_post/{{ post.id }}" style="color:red; font-size:12px;">削除</a></div>
-            {% endif %}
-        </div>
-        {% endfor %}
+        {% endif %}
+        {% if current_user.is_authenticated %}
+            <div style="text-align:right;"><a href="/delete_post/{{ post.id }}" style="color:red; font-size:11px; text-decoration: none;">[削除]</a></div>
+        {% endif %}
     </div>
+    {% endfor %}
+</div>
 
-    <script src='https://jit.si'></script>
-    <script>
-        // ビデオ通話
-        document.getElementById('start-call').onclick = function() {
-            const container = document.getElementById('meet-container');
-            container.style.display = 'block';
-            new JitsiMeetExternalAPI("meet.jit.si", {
-                roomName: 'nori-bbs-{{ thread.id }}',
-                width: '100%', height: 400, parentNode: container,
-                userInfo: { displayName: '{{ current_user.username }}' }
-            });
-        };
-        // 5秒リロード & 自動スクロール
-        setInterval(() => { if(!document.querySelector('textarea').value) location.reload(); }, 5000);
-        window.onload = () => window.scrollTo(0, document.body.scrollHeight);
-    </script>
+{% if current_user.is_authenticated %}
+<div class="footer">
+    <form method="POST" enctype="multipart/form-data">
+        <textarea name="content" id="msg-area" placeholder="メッセージ..." required></textarea>
+        <div style="display: flex; gap: 5px;">
+            <input type="file" name="image" accept="image/*,video/*" style="font-size: 11px; flex: 1;">
+            <button type="submit" class="btn-send" style="flex: 1;">書き込む</button>
+        </div>
+    </form>
+</div>
+{% else %}
+<div class="footer" style="text-align: center; padding: 20px;">
+    <a href="/login">ログインして参加する</a>
+</div>
+{% endif %}
+
+<script>
+    // 5秒おきに最新化（入力中は止める）
+    setInterval(() => {
+        const area = document.getElementById('msg-area');
+        if(area && !area.value && document.activeElement !== area) {
+            location.reload();
+        }
+    }, 5000);
+
+    // 下までスクロール
+    window.scrollTo(0, document.body.scrollHeight);
+</script>
 </body>
 </html>
