@@ -204,6 +204,23 @@ def uploaded_file(filename):
 def logout():
     logout_user()
     return redirect(url_for('index'))
+    @app.route('/delete_class/<int:class_id>')
+@login_required
+def delete_class(class_id):
+    # 削除したいクラスを取得
+    target_class = Classroom.query.get_or_404(class_id)
+    
+    # 全員掲示板（PUBLIC）は削除できないようにガードをかける
+    if target_class.code == 'PUBLIC':
+        flash('全員掲示板は削除できません。')
+        return redirect(url_for('index'))
+    
+    # クラスを削除（紐付いているスレッドや投稿も連鎖して消えます）
+    db.session.delete(target_class)
+    db.session.commit()
+    
+    return redirect(url_for('index'))
+
 
 with app.app_context():
     db.create_all()
