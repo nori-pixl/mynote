@@ -1,102 +1,69 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ thread.title }} - ライブ掲示板</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ thread.title }}</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #f0f2f5; }
-        .nav { margin-bottom: 20px; }
-        .post { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .post-info { font-size: 0.8em; color: #666; margin-bottom: 8px; display: flex; justify-content: space-between; }
-        .post-content { white-space: pre-wrap; word-wrap: break-word; }
-        .post-image { max-width: 100%; border-radius: 8px; margin-top: 10px; display: block; }
-        .post-form { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 30px; position: sticky; top: 10px; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        textarea { width: 100%; height: 80px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: none; }
-        .delete-link { color: #ff4d4d; text-decoration: none; margin-left: 10px; }
-        .btn-submit { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
+        body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 15px; background: #f0f2f5; }
+        .post { background: white; padding: 10px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .post-info { font-size: 0.8em; color: #666; margin-bottom: 5px; }
+        .media { max-width: 100%; border-radius: 8px; margin-top: 10px; }
+        .form-area { background: #fff; padding: 15px; border-radius: 8px; position: sticky; top: 0; z-index: 10; margin-bottom: 20px; }
+        textarea { width: 100%; height: 60px; }
     </style>
 </head>
 <body>
-
-    <div class="nav">
-        <a href="/">← スレ一覧に戻る</a>
-    </div>
-
+    <a href="/">← 戻る</a>
     <h1>{{ thread.title }}</h1>
 
-    <!-- 投稿フォーム -->
+    <button id="start-call" style="background:#28a745; color:#fff; border:none; padding:10px; border-radius:5px; margin-bottom:10px;">📹 ビデオ通話を開始</button>
+    <div id="meet-container" style="width:100%; height:400px; display:none; margin-bottom:20px;"></div>
+
     {% if current_user.is_authenticated %}
-    <div class="post-form">
-        <form action="/thread/{{ thread.id }}" method="POST" enctype="multipart/form-data">
-            <textarea name="content" placeholder="メッセージを入力してください" required></textarea>
-            <input type="file" name="image" accept="image/*" style="margin-top: 10px;">
-            <button type="submit" class="btn-submit">書き込む (ライブ反映)</button>
+    <div class="form-area">
+        <form method="POST" enctype="multipart/form-data">
+            <textarea name="content" placeholder="メッセージ" required></textarea>
+            <input type="file" name="image" accept="image/*,video/*">
+            <button type="submit" style="width:100%; padding:10px; margin-top:5px; background:#007bff; color:#fff; border:none;">書き込む</button>
         </form>
     </div>
-    {% else %}
-    <p><a href="/login">ログイン</a>すると投稿できるようになります。</p>
     {% endif %}
 
-    <!-- 投稿表示エリア -->
-    <div id="posts-container">
-        {% for post in thread.posts|reverse %}
+    <div id="posts">
+        {% for post in posts %}
         <div class="post">
-            <div class="post-info">
-                <span><strong>{{ post.author.username }}</strong> さんの投稿</span>
-                <span>{{ post.created_at.strftime('%Y/%m/%d %H:%M') }}
-                    {% if current_user.is_authenticated %}
-                    <a href="/delete_post/{{ post.id }}" class="delete-link" onclick="return confirm('この投稿を削除しますか？')">[削除]</a>
-                    {% endif %}
-                </span>
-            </div>
-            <div class="post-content">{{ post.content }}</div>
+            <div class="post-info"><strong>{{ post.author.username }}</strong> | {{ post.created_at.strftime('%H:%M') }}</div>
+            <div>{{ post.content }}</div>
             {% if post.image_path %}
-            <img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="post-image">
+                {% set ext = post.image_path.split('.')[-1].lower() %}
+                {% if ext in ['mp4', 'mov', 'webm'] %}
+                    <video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
+                {% else %}
+                    <img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">
+                {% endif %}
+            {% endif %}
+            {% if current_user.is_authenticated %}
+                <div style="text-align:right"><a href="/delete_post/{{ post.id }}" style="color:red; font-size:12px;">削除</a></div>
             {% endif %}
         </div>
-        {% else %}
-        <p>まだ投稿がありません。</p>
         {% endfor %}
     </div>
-    <!-- Socket.ioの読み込み -->
-<script src="https://socket.io"></script>
 
-<script>
-    var socket = io();
-    
-    // このスレッド専用の部屋に入る
-    socket.emit('join', {room: 'thread_{{ thread.id }}'});
-
-    // 新しい投稿が届いたら実行
-    socket.on('new_post', function(data) {
-        var postHtml = `
-            <div class="post">
-                <div class="post-info">
-                    <span><strong>${data.username}</strong> さんの投稿</span>
-                    <span>${data.created_at}</span>
-                </div>
-                <div class="post-content">${data.content}</div>
-                ${data.image ? `<img src="/uploads/${data.image}" class="post-image">` : ''}
-            </div>
-        `;
-        // 一番下に新着を追加
-        document.getElementById('posts-container').insertAdjacentHTML('beforeend', postHtml);
-        // 自動で下までスクロール
-        window.scrollTo(0, document.body.scrollHeight);
-    });
-</script>
-
+    <script src='https://jit.si'></script>
     <script>
-        // 5秒ごとにページを最新の状態に更新してライブ感を出す
-        // 入力中の場合は更新しないように配慮
-        setInterval(function(){
-            const textarea = document.querySelector('textarea');
-            if (textarea && textarea.value === "") {
-                location.reload();
-            }
-        }, 5000);
+        // ビデオ通話
+        document.getElementById('start-call').onclick = function() {
+            const container = document.getElementById('meet-container');
+            container.style.display = 'block';
+            new JitsiMeetExternalAPI("meet.jit.si", {
+                roomName: 'nori-bbs-{{ thread.id }}',
+                width: '100%', height: 400, parentNode: container,
+                userInfo: { displayName: '{{ current_user.username }}' }
+            });
+        };
+        // 5秒リロード & 自動スクロール
+        setInterval(() => { if(!document.querySelector('textarea').value) location.reload(); }, 5000);
+        window.onload = () => window.scrollTo(0, document.body.scrollHeight);
     </script>
-
 </body>
 </html>
