@@ -21,7 +21,13 @@
             if(localStorage.getItem('bbs_u')) {
                 document.getElementById('u').value = localStorage.getItem('bbs_u');
                 document.getElementById('p').value = localStorage.getItem('bbs_p');
+                
             }
+            // login.html の window.onload の中に追加すると最強です
+            if(document.getElementById('u').value) {
+                document.getElementById('login-form').submit();
+            }
+
         };
     </script>
 </body>
