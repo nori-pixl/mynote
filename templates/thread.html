@@ -5,68 +5,47 @@
     <title>{{ thread.title }}</title>
     <style>
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 140px; }
-        .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; }
+        .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
         .post { background: white; padding: 12px; border-radius: 12px; margin: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .post-info { font-size: 11px; color: #888; display: flex; justify-content: space-between; }
         .media { max-width: 100%; border-radius: 8px; margin-top: 8px; display: block; }
-        .reac-btn { text-decoration: none; font-size: 13px; background: #f0f2f5; padding: 4px 8px; border-radius: 15px; color: #333; margin-right: 5px; display: inline-block; }
         .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; box-sizing: border-box; }
         textarea { width: 100%; height: 50px; border-radius: 8px; border: 1px solid #ccc; padding: 8px; box-sizing: border-box; }
     </style>
 </head>
 <body>
-
-<div class="header">
-    <a href="/class/{{ thread.class_id }}" style="text-decoration:none;">← 戻る</a>
-    <strong style="margin-left:10px;">{{ thread.title }}</strong>
-</div>
-
+<div class="header"><a href="/class/{{ thread.class_id }}" style="text-decoration:none;">← 戻る</a> <strong style="margin-left:10px;">{{ thread.title }} ({{ post_count }}/500)</strong></div>
 <div id="post-list">
     {% for post in posts %}
     <div class="post">
-        <div class="post-info">
-            <strong>{{ post.author.username }}</strong>
-            <span>{{ post.created_at.strftime('%H:%M') }}</span>
-        </div>
+        <div style="font-size:11px; color:#888;"><strong>{{ post.author.username }}</strong> | {{ post.created_at.strftime('%H:%M') }}</div>
         <div style="white-space: pre-wrap; margin-top:5px;">{{ post.content }}</div>
-        
         {% if post.image_path %}
             {% set ext = post.image_path.split('.')[-1].lower() %}
-            {% if ext in ['mp4', 'mov', 'webm'] %}
-                <video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
-            {% else %}
-                <img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">
-            {% endif %}
+            {% if ext in ['mp4', 'mov', 'webm'] %}<video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
+            {% else %}<img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">{% endif %}
         {% endif %}
-        
-        <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                {% for emoji, type in [('👍', 'thumbsup'), ('❤️', 'heart'), ('😆', 'smile')] %}
-                    {% set count = Reaction.query.filter_by(post_id=post.id, type=type).count() %}
-                    <a href="/react/{{ post.id }}/{{ type }}" class="reac-btn">{{ emoji }} {{ count if count > 0 else '' }}</a>
-                {% endfor %}
-            </div>
-            <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除しますか？')" style="color:#ff4d4d; font-size:11px; text-decoration:none;">🗑 削除</a>
+        <div style="margin-top:10px; display:flex; justify-content:space-between;">
+            <div>{% for e, t in [('👍', 'thumbsup'), ('❤️', 'heart'), ('😆', 'smile')] %}
+                {% set c = Reaction.query.filter_by(post_id=post.id, type=t).count() %}
+                <a href="/react/{{ post.id }}/{{ t }}" style="text-decoration:none; background:#eee; padding:4px 8px; border-radius:15px; font-size:12px; color:#333;">{{ e }} {{ c if c > 0 else '' }}</a>
+            {% endfor %}</div>
+            <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除？')" style="color:red; font-size:11px; text-decoration:none;">🗑 削除</a>
         </div>
     </div>
     {% endfor %}
 </div>
-
+{% if post_count < 500 %}
 <div class="footer">
     <form method="POST" enctype="multipart/form-data">
-        <textarea name="content" id="msg-area" placeholder="メッセージを入力..." required></textarea>
-        <div style="display: flex; gap: 5px; margin-top: 5px;">
-            <input type="file" name="image" accept="image/*,video/*" style="font-size: 11px; flex: 1;">
-            <button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px; font-weight:bold;">書き込む</button>
-        </div>
+        <textarea name="content" id="msg-area" placeholder="メッセージ..." required></textarea>
+        <div style="display:flex; gap:5px; margin-top:5px;"><input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;"><button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px;">書き込む</button></div>
     </form>
 </div>
-
+{% else %}
+<div class="footer" style="text-align:center; color:red; font-weight:bold;">このスレッドは満杯(500件)です</div>
+{% endif %}
 <script>
-    setInterval(() => {
-        const area = document.getElementById('msg-area');
-        if(!area.value && document.activeElement !== area) location.reload();
-    }, 5000);
+    setInterval(() => { if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') location.reload(); }, 5000);
     window.scrollTo(0, document.body.scrollHeight);
 </script>
 </body>
