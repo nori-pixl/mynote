@@ -2,18 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>
-        if ("{{ current_user.is_authenticated }}" === "False") {
-            if (window.location.pathname !== '/login') window.location.href = "/login";
-        }
-    </script>
-    <title>マイクラス掲示板</title>
+    <title>掲示板トップ</title>
     <style>
         body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 600px; margin: auto; }
         .box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .btn { padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
         .class-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #007bff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .public-card { border-left-color: #ffc107; }
     </style>
@@ -38,15 +33,15 @@
     <h3>参加中の掲示板</h3>
     {% for c in current_user.classrooms %}
     <div class="class-card {{ 'public-card' if c.code == 'PUBLIC' else '' }}">
-        <div><strong>{{ c.name }}</strong><br><small>{{ '🌎 ロビー' if c.code == 'PUBLIC' else '🔑 ' + c.code }}</small></div>
+        <div><strong>{{ c.name }}</strong><br><small>{{ '🌎 全員参加' if c.code == 'PUBLIC' else '🔑 コード: ' + c.code }}</small></div>
         <div style="display:flex; align-items:center; gap:10px;">
             <a href="/class/{{ c.id }}" style="text-decoration:none; color:#007bff; font-weight:bold;">入室 →</a>
-            {% if c.code != 'PUBLIC' %}<a href="/delete_class/{{ c.id }}" onclick="return confirm('消去しますか？')" style="text-decoration:none;">🗑</a>{% endif %}
+            {% if c.code != 'PUBLIC' %}<a href="/delete_class/{{ c.id }}" onclick="return confirm('消去しますか？')" style="text-decoration:none; font-size:18px;">🗑</a>{% endif %}
         </div>
     </div>
     {% endfor %}
 
-    <div style="text-align:center; margin-top:30px;"><a href="/logout" onclick="localStorage.clear();" style="color:red; text-decoration:none;">ログアウト</a></div>
+    <div style="text-align:center; margin-top:30px;"><a href="/logout" style="color:red; text-decoration:none;">ログアウト</a></div>
     <footer style="text-align:center; margin-top:40px; color:#888; font-size:12px;">&copy; 2024 nori1213. All Rights Reserved.</footer>
 </div>
 </body>
