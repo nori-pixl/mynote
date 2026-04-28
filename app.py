@@ -1,5 +1,5 @@
 import os, random, string
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -7,9 +7,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori_final_v5_fixed_2024'
-app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
+app.config['SECRET_KEY'] = 'nori-bbs-stable-key'
 
+# 保存先
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(UPLOAD_FOLDER, 'bbs.db')
@@ -64,7 +64,7 @@ class Reaction(db.Model):
 @login_manager.user_loader
 def load_user(id): return User.query.get(int(id))
 
-# --- ルート ---
+# --- ルート設定 ---
 @app.route('/')
 @login_required
 def index():
@@ -78,7 +78,7 @@ def signup():
         new_user = User(username=u, password=generate_password_hash(p))
         pub = Classroom.query.filter_by(code='PUBLIC').first()
         if not pub:
-            pub = Classroom(name='全員掲示板（ロビー）', code='PUBLIC')
+            pub = Classroom(name='全員掲示板', code='PUBLIC')
             db.session.add(pub); db.session.flush()
         new_user.classrooms.append(pub)
         db.session.add(new_user); db.session.commit()
@@ -91,7 +91,7 @@ def login():
         u, p = request.form.get('username'), request.form.get('password')
         user = User.query.filter_by(username=u).first()
         if user and check_password_hash(user.password, p):
-            login_user(user, remember=True); return redirect(url_for('index'))
+            login_user(user); return redirect(url_for('index'))
     return render_template('login.html')
 
 @app.route('/manage_class', methods=['POST'])
@@ -118,13 +118,6 @@ def class_view(class_id):
     if target not in current_user.classrooms: return "Access Denied", 403
     threads = Thread.query.filter_by(class_id=class_id).order_by(Thread.created_at.desc()).all()
     return render_template('class_view.html', target_class=target, threads=threads)
-
-@app.route('/create_thread/<int:class_id>', methods=['POST'])
-@login_required
-def create_thread(class_id):
-    t = request.form.get('title')
-    if t: db.session.add(Thread(title=t, class_id=class_id)); db.session.commit()
-    return redirect(url_for('class_view', class_id=class_id))
 
 @app.route('/thread/<int:thread_id>', methods=['GET', 'POST'])
 @login_required
@@ -175,6 +168,7 @@ def uploaded_file(filename): return send_from_directory(app.config['UPLOAD_FOLDE
 def logout(): logout_user(); return redirect(url_for('login'))
 
 with app.app_context(): db.create_all()
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
