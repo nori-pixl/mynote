@@ -2,47 +2,91 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>掲示板トップ</title>
+    <script>
+        // 【自動ログイン復旧】サーバー側でログインが切れていたら、即座にログイン画面へ飛ばす
+        if ("{{ current_user.is_authenticated }}" === "False") {
+            window.location.href = "/login";
+        }
+    </script>
+    <title>クラスルーム一覧</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 600px; margin: auto; }
+        h1 { font-size: 20px; color: #1c1e21; margin-bottom: 20px; }
+        
+        /* クラス作成・参加ボックス */
         .box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
-        .class-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #007bff; }
+        .box strong { display: block; margin-bottom: 10px; color: #555; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:hover { opacity: 0.8; }
+
+        /* クラスカードUI */
+        .class-card { background: white; padding: 18px; border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #007bff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .public-card { border-left-color: #ffc107; } /* 全員用は黄色 */
+        
+        .class-info strong { font-size: 1.1em; display: block; margin-bottom: 3px; }
+        .class-info small { color: #888; font-size: 12px; }
+        .enter-link { text-decoration: none; color: #007bff; font-weight: bold; background: #f0f7ff; padding: 8px 16px; border-radius: 20px; font-size: 14px; }
+        .enter-link:hover { background: #007bff; color: white; }
+        
+        .delete-btn { color: #ccc; text-decoration: none; font-size: 18px; margin-left: 10px; }
+        .delete-btn:hover { color: #ff4d4d; }
+
+        footer { text-align: center; margin-top: 50px; padding-bottom: 20px; color: #999; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
     </style>
 </head>
 <body>
+
 <div class="container">
-    <h2>こんにちは、{{ current_user.username }}さん</h2>
+    <h1>こんにちは、{{ current_user.username }}さん</h1>
+
+    <!-- クラス管理フォーム -->
     <div class="box">
-        <strong>クラスに参加・作成</strong>
-        <form action="/manage_class" method="POST" style="margin-top:10px;">
-            <div style="display:flex; gap:10px;">
-                <input type="text" name="code" placeholder="コード" style="flex:1;">
+        <form action="/manage_class" method="POST">
+            <strong>クラスに参加する</strong>
+            <div class="input-group">
+                <input type="text" name="code" placeholder="5桁の招待コード">
                 <button type="submit" name="action" value="join" class="btn" style="background:#007bff;">参加</button>
             </div>
-        </form>
-        <form action="/manage_class" method="POST" style="margin-top:10px;">
-            <div style="display:flex; gap:10px;">
-                <input type="text" name="name" placeholder="新しいクラス名" style="flex:1;">
+            
+            <strong style="margin-top:20px;">新しくクラスを作る</strong>
+            <div class="input-group">
+                <input type="text" name="name" placeholder="例: 1年A組" required>
                 <button type="submit" name="action" value="create" class="btn" style="background:#28a745;">作成</button>
             </div>
         </form>
     </div>
 
-    <h3>参加中の掲示板</h3>
+    <h3>参加中のクラス</h3>
     {% for c in current_user.classrooms %}
-    <div class="class-card" style="{{ 'border-left-color: #ffc107;' if c.code == 'PUBLIC' else '' }}">
-        <div><strong>{{ c.name }}</strong><br><small>{{ '🌎 ロビー' if c.code == 'PUBLIC' else '🔑 ' + c.code }}</small></div>
-        <div style="display:flex; align-items:center; gap:10px;">
-            <a href="/class/{{ c.id }}" style="text-decoration:none; color:#007bff; font-weight:bold;">入室 →</a>
-            {% if c.code != 'PUBLIC' %}<a href="/delete_class/{{ c.id }}" onclick="return confirm('削除？')">🗑</a>{% endif %}
+    <div class="class-card {{ 'public-card' if c.code == 'PUBLIC' else '' }}">
+        <div class="class-info">
+            <strong>{{ c.name }}</strong>
+            <small>
+                {% if c.code == 'PUBLIC' %}🌍 全員掲示板 (宣伝・交流用){% else %}🔑 招待コード: {{ c.code }}{% endif %}
+            </small>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <a href="/class/{{ c.id }}" class="enter-link">入室する →</a>
+            {% if c.code != 'PUBLIC' %}
+            <a href="/delete_class/{{ c.id }}" class="delete-btn" onclick="return confirm('クラスを削除すると全データが消えます。OK？')" title="削除">🗑</a>
+            {% endif %}
         </div>
     </div>
     {% endfor %}
-    <div style="text-align:center; margin-top:30px;"><a href="/logout" style="color:red; text-decoration:none;">ログアウト</a></div>
-    <footer style="text-align:center; margin-top:40px; color:#888; font-size:12px;">&copy; 2024 nori1213</footer>
+
+    <!-- ログアウト -->
+    <div style="text-align:center; margin-top:30px;">
+        <a href="/logout" onclick="localStorage.clear();" style="color:#ff4d4d; text-decoration:none; font-size:14px;">ログアウト（自動ログインを解除）</a>
+    </div>
+
+    <!-- 著作権表示 -->
+    <footer>
+        &copy; 2024 nori1213. All Rights Reserved.
+    </footer>
 </div>
+
 </body>
 </html>
