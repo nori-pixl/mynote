@@ -1,28 +1,49 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ログイン</title></head>
-<body style="font-family:sans-serif; background:#f0f2f5; display:flex; justify-content:center; align-items:center; height:100vh; margin: 0;">
-    <div style="background:white; padding:30px; border-radius:12px; width:300px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: white; padding: 30px; border-radius: 12px; width: 300px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="box">
         <h2>クラスルーム ログイン</h2>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}<p style="color: red; font-size: 13px;">{{ messages[0] }}</p>{% endif %}
+        {% endwith %}
         <form method="POST" id="login-form">
-            <input type="text" name="username" id="u" placeholder="名前" required style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
-            <input type="password" name="password" id="p" placeholder="パスワード" required style="width:100%; padding:10px; margin-bottom:15px; box-sizing:border-box;">
-            <button type="submit" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">ログイン</button>
+            <input type="text" name="username" id="u" placeholder="名前" required>
+            <input type="password" name="password" id="p" placeholder="パスワード" required>
+            <button type="submit">ログイン</button>
         </form>
+        <p style="font-size: 12px; margin-top: 15px;">新規作成は <a href="/signup">こちら</a></p>
     </div>
+
     <script>
         window.onload = function() {
+            // サーバー側で「ログイン失敗」した場合は、自動送信を止めて情報を消す
+            const loginFailed = "{{ login_failed }}";
+            if (loginFailed === "True") {
+                localStorage.clear();
+                return;
+            }
+
             const savedU = localStorage.getItem('bbs_u');
             const savedP = localStorage.getItem('bbs_p');
+            
             if(savedU && savedP) {
                 document.getElementById('u').value = savedU;
                 document.getElementById('p').value = savedP;
-                // サーバーのスリープで飛ばされてきた場合のみ自動送信
-                if (!document.referrer || document.referrer.includes(window.location.hostname)) {
-                    document.getElementById('login-form').submit();
-                }
+                // ログイン画面に飛ばされてきた場合、0.5秒後に自動でログイン
+                setTimeout(() => { document.getElementById('login-form').submit(); }, 500);
             }
         };
+
         document.getElementById('login-form').onsubmit = function() {
             localStorage.setItem('bbs_u', document.getElementById('u').value);
             localStorage.setItem('bbs_p', document.getElementById('p').value);
