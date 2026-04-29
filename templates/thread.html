@@ -6,14 +6,24 @@
     <style>
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 140px; }
         .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
+        .participants { background: #fff; padding: 8px 15px; font-size: 12px; color: #666; border-bottom: 1px solid #eee; }
         .post { background: white; padding: 12px; border-radius: 12px; margin: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .media { max-width: 100%; border-radius: 8px; margin-top: 8px; display: block; }
         .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; box-sizing: border-box; }
-        textarea { width: 100%; height: 50px; border-radius: 8px; border: 1px solid #ccc; padding: 8px; box-sizing: border-box; }
+        textarea { width: 100%; height: 50px; border: 1px solid #ccc; border-radius: 8px; padding: 8px; box-sizing: border-box; }
     </style>
 </head>
 <body>
-<div class="header"><a href="/class/{{ thread.class_id }}" style="text-decoration:none;">← 戻る</a> <strong style="margin-left:10px;">{{ thread.title }} ({{ post_count }}/500)</strong></div>
+<div class="header">
+    <a href="/class/{{ thread.class_id }}" style="text-decoration:none;">← 戻る</a>
+    <strong style="margin-left:10px;">{{ thread.title }} ({{ post_count }}/500)</strong>
+</div>
+
+<div class="participants">
+    <strong>📝 参加者:</strong> 
+    {% for p in participants %}{{ p.username }}{% if not loop.last %}, {% endif %}{% else %}なし{% endfor %}
+</div>
+
 <div id="post-list">
     {% for post in posts %}
     <div class="post">
@@ -24,7 +34,7 @@
             {% if ext in ['mp4', 'mov', 'webm'] %}<video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
             {% else %}<img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">{% endif %}
         {% endif %}
-        <div style="margin-top:10px; display:flex; justify-content:space-between;">
+        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items: center;">
             <div>{% for e, t in [('👍', 'thumbsup'), ('❤️', 'heart'), ('😆', 'smile')] %}
                 {% set c = Reaction.query.filter_by(post_id=post.id, type=t).count() %}
                 <a href="/react/{{ post.id }}/{{ t }}" style="text-decoration:none; background:#eee; padding:4px 8px; border-radius:15px; font-size:12px; color:#333;">{{ e }} {{ c if c > 0 else '' }}</a>
@@ -34,11 +44,12 @@
     </div>
     {% endfor %}
 </div>
+
 {% if post_count < 500 %}
 <div class="footer">
     <form method="POST" enctype="multipart/form-data">
         <textarea name="content" id="msg-area" placeholder="メッセージ..." required></textarea>
-        <div style="display:flex; gap:5px; margin-top:5px;"><input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;"><button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px;">書き込む</button></div>
+        <div style="display:flex; gap:5px; margin-top:5px;"><input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;"><button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px; font-weight:bold;">書き込む</button></div>
     </form>
 </div>
 {% else %}
