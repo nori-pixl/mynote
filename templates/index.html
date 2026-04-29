@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script>if ("{{ current_user.is_authenticated }}" === "False") window.location.href = "/login";</script>
-    <title>クラス一覧</title>
+    <title>mynote掲示板</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f2f2f7; margin: 0; padding: 16px; color: #1c1c1e; }
         .container { max-width: 500px; margin: auto; }
@@ -19,6 +19,8 @@
 </head>
 <body>
 <div class="container">
+    <h1>mynote ver1.0</h1>
+   
     <h2>こんにちは、{{ current_user.username }}さん</h2>
     <div class="box">
         <form action="/manage_class" method="POST">
