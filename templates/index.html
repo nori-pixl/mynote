@@ -7,22 +7,24 @@
         body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 600px; margin: auto; }
         .box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .class-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #007bff; }
         input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .btn { padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; }
+        .class-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid #007bff; }
     </style>
 </head>
 <body>
 <div class="container">
     <h2>こんにちは、{{ current_user.username }}さん</h2>
     <div class="box">
-        <form action="/manage_class" method="POST">
-            <strong>クラスに参加・作成</strong>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <input type="text" name="code" placeholder="招待コード" style="flex:1;">
+        <strong>クラスに参加・作成</strong>
+        <form action="/manage_class" method="POST" style="margin-top:10px;">
+            <div style="display:flex; gap:10px;">
+                <input type="text" name="code" placeholder="コード" style="flex:1;">
                 <button type="submit" name="action" value="join" class="btn" style="background:#007bff;">参加</button>
             </div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
+        </form>
+        <form action="/manage_class" method="POST" style="margin-top:10px;">
+            <div style="display:flex; gap:10px;">
                 <input type="text" name="name" placeholder="新しいクラス名" style="flex:1;">
                 <button type="submit" name="action" value="create" class="btn" style="background:#28a745;">作成</button>
             </div>
@@ -35,11 +37,10 @@
         <div><strong>{{ c.name }}</strong><br><small>{{ '🌎 ロビー' if c.code == 'PUBLIC' else '🔑 ' + c.code }}</small></div>
         <div style="display:flex; align-items:center; gap:10px;">
             <a href="/class/{{ c.id }}" style="text-decoration:none; color:#007bff; font-weight:bold;">入室 →</a>
-            {% if c.code != 'PUBLIC' %}<a href="/delete_class/{{ c.id }}" onclick="return confirm('消去しますか？')" style="text-decoration:none;">🗑</a>{% endif %}
+            {% if c.code != 'PUBLIC' %}<a href="/delete_class/{{ c.id }}" onclick="return confirm('削除？')">🗑</a>{% endif %}
         </div>
     </div>
     {% endfor %}
-
     <div style="text-align:center; margin-top:30px;"><a href="/logout" style="color:red; text-decoration:none;">ログアウト</a></div>
     <footer style="text-align:center; margin-top:40px; color:#888; font-size:12px;">&copy; 2024 nori1213</footer>
 </div>
