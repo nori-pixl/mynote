@@ -4,34 +4,42 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ target_class.name }}</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .member-list { background: #e9ecef; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-        .thread-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; }
+        .main-content { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 220px; background: #fff; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; }
+        .thread-area { flex: 1; padding: 20px; overflow-y: auto; }
+        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .btn-create { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .member-item { display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; }
+        .dot { width: 8px; height: 8px; background: #28a745; border-radius: 50%; margin-right: 8px; }
     </style>
 </head>
 <body>
-    <div style="max-width:600px; margin:auto;">
-        <a href="/" style="text-decoration:none;">← 戻る</a>
-        <h1>{{ target_class.name }}</h1>
-
-        <div class="member-list">
-            <strong>👥 メンバー:</strong> 
-            {% for m in members %}{{ m.username }}{% if not loop.last %}, {% endif %}{% endfor %}
-        </div>
-
-        <div style="background:white; padding:15px; border-radius:8px; margin-bottom:20px;">
+<div class="header">
+    <a href="/" style="text-decoration:none; color:#007bff;">← クラス一覧</a>
+    <h2 style="margin:5px 0 0 0;">{{ target_class.name }}</h2>
+    <small style="color:#888;">{{ '🌎 全員掲示板' if target_class.code == 'PUBLIC' else '🔑 招待コード: ' + target_class.code }}</small>
+</div>
+<div class="main-content">
+    <div class="sidebar">
+        <h4 style="margin-top:0;">👥 メンバー ({{ members|length }})</h4>
+        {% for m in members %}<div class="member-item"><div class="dot"></div>{{ m.username }}</div>{% endfor %}
+    </div>
+    <div class="thread-area">
+        <div style="background:white; padding:15px; border-radius:12px; margin-bottom:20px;">
             <form action="/create_thread/{{ target_class.id }}" method="POST" style="display:flex; gap:10px;">
-                <input type="text" name="title" placeholder="新しいスレッドのタイトル" required style="flex:1; padding:10px;">
-                <button type="submit" style="padding:10px; background:#28a745; color:white; border:none; border-radius:4px; font-weight:bold;">作成</button>
+                <input type="text" name="title" placeholder="新しいスレッドのタイトル" required style="flex:1; padding:10px; border:1px solid #ddd; border-radius:5px;">
+                <button type="submit" class="btn-create">作成</button>
             </form>
         </div>
-
         {% for t in threads %}
-        <div class="thread-card">
-            <a href="/thread/{{ t.id }}" style="text-decoration:none; color:#333; font-weight:bold;">{{ t.title }}</a>
-            <a href="/delete_thread/{{ t.id }}" onclick="return confirm('削除？')" style="color:red; font-size:12px; text-decoration:none;">🗑 スレ削除</a>
+        <div class="card">
+            <a href="/thread/{{ t.id }}" style="text-decoration:none; color:#333; font-weight:bold; flex:1;"># {{ t.title }}</a>
+            <a href="/delete_thread/{{ t.id }}" onclick="return confirm('スレ削除？')" style="color:#ff4d4d; text-decoration:none; font-size:12px;">🗑</a>
         </div>
         {% endfor %}
     </div>
+</div>
 </body>
 </html>
