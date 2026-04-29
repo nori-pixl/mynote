@@ -1,5 +1,5 @@
 import os, random, string
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -7,8 +7,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori-permanent-v11-fixed'
+app.config['SECRET_KEY'] = 'nori-permanent-v12-final'
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 
+# 保存先設定
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(UPLOAD_FOLDER, 'bbs.db')
@@ -19,6 +21,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# --- モデル定義 (Subs, Classroom, User, Thread, Post, Reaction) ---
 subs = db.Table('subs',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
     db.Column('classroom_id', db.Integer, db.ForeignKey('classroom.id'))
@@ -64,6 +67,7 @@ class Reaction(db.Model):
 @login_manager.user_loader
 def load_user(id): return User.query.get(int(id))
 
+# --- ルート ---
 @app.route('/')
 @login_required
 def index(): return render_template('index.html')
@@ -71,11 +75,13 @@ def index(): return render_template('index.html')
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u, p = request.form.get('username'), request.form.get('password')
+        u = request.form.get('username'); p = request.form.get('password')
         user = User.query.filter_by(username=u).first()
         if user and check_password_hash(user.password, p):
             login_user(user, remember=True); return redirect(url_for('index'))
-        return "Login Failed", 401
+        # 失敗時にフラグを立てて返す
+        flash('ログイン失敗：名前かパスワードが違います')
+        return render_template('login.html', login_failed=True)
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -117,6 +123,7 @@ def thread_detail(thread_id):
     posts = Post.query.filter_by(thread_id=thread_id, parent_id=None).order_by(Post.created_at.asc()).all()
     return render_template('thread.html', thread=thread, posts=posts, Reaction=Reaction, post_count=post_count, participants=participants)
 
+# --- その他の管理用ルート ---
 @app.route('/manage_class', methods=['POST'])
 @login_required
 def manage_class():
