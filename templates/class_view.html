@@ -5,25 +5,23 @@
     <title>{{ target_class.name }}</title>
     <style>
         body { font-family: sans-serif; background: #f0f2f5; padding: 20px; }
-        .thread-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .box { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <div style="max-width:600px; margin:auto;">
-        <a href="/" style="text-decoration:none;">← クラス一覧に戻る</a>
+        <a href="/">← 戻る</a>
         <h1>{{ target_class.name }}</h1>
-
-        <div style="background:white; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <div class="box">
             <form action="/create_thread/{{ target_class.id }}" method="POST" style="display:flex; gap:10px;">
-                <input type="text" name="title" placeholder="新しいスレッド名" required style="flex:1; padding:8px; border-radius:4px; border:1px solid #ddd;">
-                <button type="submit" style="padding:8px 15px; background:#007bff; color:white; border:none; border-radius:4px; font-weight:bold;">作成</button>
+                <input type="text" name="title" placeholder="新しいスレッドのタイトル" required style="flex:1; padding:10px;">
+                <button type="submit" style="padding:10px; background:#28a745; color:white; border:none; border-radius:4px;">作成</button>
             </form>
         </div>
-
         {% for t in threads %}
-        <div class="thread-card">
-            <a href="/thread/{{ t.id }}" style="text-decoration:none; color:#333; font-weight:bold; flex:1;">{{ t.title }}</a>
-            <a href="/delete_thread/{{ t.id }}" onclick="return confirm('スレッドを削除しますか？')" style="color:#ff4d4d; text-decoration:none; font-size:12px;">🗑 スレ削除</a>
+        <div style="background:white; padding:15px; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between;">
+            <a href="/thread/{{ t.id }}" style="text-decoration:none; color:#333; font-weight:bold;">{{ t.title }}</a>
+            <a href="/delete_thread/{{ t.id }}" onclick="return confirm('スレ削除？')" style="color:red; font-size:12px;">[削除]</a>
         </div>
         {% endfor %}
     </div>
