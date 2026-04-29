@@ -1,60 +1,67 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ thread.title }}</title>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 160px; }
-        .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
-        .post { background: white; padding: 12px; border-radius: 12px; margin: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .reply-post { margin-left: 30px; border-left: 3px solid #ddd; background: #fafafa; }
-        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; box-sizing: border-box; }
-        textarea { width: 100%; height: 50px; border: 1px solid #ccc; border-radius: 8px; padding: 8px; box-sizing: border-box; resize: none; }
-        .reac-btn { text-decoration: none; background: #eee; padding: 4px 8px; border-radius: 15px; font-size: 12px; color: #333; }
-        .banner { background: #e9ecef; padding: 5px 10px; font-size: 12px; display: none; justify-content: space-between; border-radius: 5px 5px 0 0; }
+        body { font-family: sans-serif; background: #f2f2f7; margin: 0; padding-bottom: 180px; }
+        .header { background: white; padding: 14px; border-bottom: 1px solid #d1d1d6; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; }
+        .post { background: white; padding: 12px; border-radius: 14px; margin: 10px; max-width: 85%; align-self: flex-start; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }
+        .post-reply { margin-left: 30px; background: #e5e5ea; border-radius: 10px; font-size: 14px; padding: 10px; }
+        .media { max-width: 100%; border-radius: 10px; margin-top: 8px; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 12px; border-top: 1px solid #d1d1d6; box-sizing: border-box; }
+        textarea { width: 100%; height: 60px; border: 1px solid #d1d1d6; border-radius: 12px; padding: 10px; box-sizing: border-box; font-size: 16px; resize: none; }
+        .btn-send { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; width: 100%; margin-top: 8px; }
+        .reac-btn { text-decoration: none; background: #f2f2f7; padding: 6px 10px; border-radius: 15px; font-size: 13px; color: #1c1c1e; margin-right: 4px; }
     </style>
 </head>
 <body>
-<div class="header"><a href="/class/{{ thread.class_id }}" style="text-decoration:none;">← 戻る</a> <strong>{{ thread.title }} ({{ post_count }}/500)</strong></div>
-<div style="background:#fff; padding:8px 15px; font-size:11px; color:#666; border-bottom:1px solid #eee;">👥 参加者: {% for p in participants %}{{ p.username }} {% endfor %}</div>
-<div id="post-list">
+<div class="header">
+    <a href="/class/{{ thread.class_id }}" style="text-decoration:none; color:#007bff;">← 戻る</a>
+    <strong style="margin-left:12px;">{{ thread.title }} ({{ post_count }}/500)</strong>
+</div>
+
+<div id="post-list" style="display:flex; flex-direction:column; padding:8px;">
     {% for post in posts %}
     <div class="post">
-        <div style="font-size:11px; color:#888;"><strong>{{ post.author.username }}</strong> | {{ post.created_at.strftime('%H:%M') }}</div>
-        <div style="white-space: pre-wrap; margin-top:5px;">{{ post.content }}</div>
-        {% if post.image_path %}<img src="{{ url_for('uploaded_file', filename=post.image_path) }}" style="max-width:100%; border-radius:8px; margin-top:8px;">{% endif %}
-        <div style="margin-top:10px; display:flex; justify-content:space-between;">
-            <div>{% for e, t in [('👍', 'thumbsup'), ('❤️', 'heart'), ('😆', 'smile')] %}
-                {% set c = Reaction.query.filter_by(post_id=post.id, type=t).count() %}
-                <a href="/react/{{ post.id }}/{{ t }}" class="reac-btn">{{ e }} {{ c if c > 0 else '' }}</a>
-            {% endfor %}
-            <button onclick="setReply({{ post.id }}, '{{ post.author.username }}')" style="background:none; border:1px solid #ccc; border-radius:10px; font-size:11px; cursor:pointer;">↩ 返信</button></div>
-            <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除？')" style="color:red; font-size:11px; text-decoration:none;">🗑</a>
+        <div style="font-size:11px; color:#8e8e93; margin-bottom:4px;">{{ post.author.username }} | {{ post.created_at.strftime('%H:%M') }}</div>
+        <div style="white-space: pre-wrap; font-size:16px;">{{ post.content }}</div>
+        {% if post.image_path %}<img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">{% endif %}
+        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <a href="/react/{{ post.id }}/thumbsup" class="reac-btn">👍</a>
+                <button onclick="setReply({{ post.id }}, '{{ post.author.username }}')" style="background:none; border:1px solid #ccc; border-radius:12px; font-size:11px; padding:4px 8px;">↩ 返信</button>
+            </div>
+            <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除？')" style="text-decoration:none; color:#ff3b30; font-size:12px;">🗑</a>
         </div>
-        {% for r in post.replies %}<div class="post reply-post"><div style="font-size:10px; color:#888;"><strong>{{ r.author.username }}</strong></div><div>{{ r.content }}</div></div>{% endfor %}
+        {% for r in post.replies %}
+            <div class="post-reply"><strong>{{ r.author.username }}</strong>: {{ r.content }}</div>
+        {% endfor %}
     </div>
     {% endfor %}
 </div>
+
 {% if post_count < 500 %}
 <div class="footer">
-    <div id="banner" class="banner"><span id="banner-text"></span><button onclick="cancelReply()">×</button></div>
-    <form method="POST" enctype="multipart/form-data"><input type="hidden" name="parent_id" id="parent-input">
-        <textarea name="content" id="msg-area" placeholder="メッセージ..." required></textarea>
-        <div style="display:flex; gap:5px; margin-top:5px;"><input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;"><button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px;">送信</button></div>
+    <div id="reply-banner" style="display:none; background:#eee; padding:6px; border-radius:6px; margin-bottom:6px; font-size:12px; justify-content:space-between;">
+        <span id="reply-text"></span><button onclick="cancelReply()" style="border:none; background:none;">×</button>
+    </div>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="parent_id" id="parent-input">
+        <textarea name="content" id="msg-area" placeholder="メッセージを入力..." required></textarea>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+            <input type="file" name="image" accept="image/*" style="font-size:11px; flex:1;">
+            <button type="submit" class="btn-send" style="flex:1;">送信</button>
+        </div>
     </form>
 </div>
 {% endif %}
+
 <script>
-    function setReply(id, n) { document.getElementById('parent-input').value = id; document.getElementById('banner-text').innerText = n + "さんへ返信"; document.getElementById('banner').style.display = "flex"; document.getElementById('msg-area').focus(); }
-    function cancelReply() { document.getElementById('parent-input').value = ""; document.getElementById('banner').style.display = "none"; }
-    window.onload = () => {
-        window.scrollTo(0, document.body.scrollHeight);
-        if (Notification.permission !== "granted") Notification.requestPermission();
-        let last = localStorage.getItem('cnt_{{ thread.id }}');
-        if (last && parseInt(last) < {{ post_count }} && document.hidden) { new Notification("新着あり: {{ thread.title }}"); }
-        localStorage.setItem('cnt_{{ thread.id }}', {{ post_count }});
-    };
-    setInterval(() => { if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') location.reload(); }, 10000);
+    function setReply(id, n) { document.getElementById('parent-input').value = id; document.getElementById('reply-text').innerText = n + "さんへ返信"; document.getElementById('reply-banner').style.display = "flex"; document.getElementById('msg-area').focus(); }
+    function cancelReply() { document.getElementById('parent-input').value = ""; document.getElementById('reply-banner').style.display = "none"; }
+    window.onload = () => { window.scrollTo(0, document.body.scrollHeight); };
+    setInterval(() => { if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') location.reload(); }, 15000);
 </script>
 </body>
 </html>
