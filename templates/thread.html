@@ -2,125 +2,59 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">{{ thread.title }}</title>
+    <title>{{ thread.title }}</title>
     <style>
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; padding-bottom: 160px; }
         .header { background: white; padding: 15px; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
-        .participants { background: #fff; padding: 8px 15px; font-size: 11px; color: #666; border-bottom: 1px solid #eee; }
         .post { background: white; padding: 12px; border-radius: 12px; margin: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .reply-box { margin-left: 30px; border-left: 3px solid #ddd; padding-left: 10px; background: #fafafa; }
-        .media { max-width: 100%; border-radius: 8px; margin-top: 8px; display: block; }
-        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; box-sizing: border-box; z-index: 100; }
+        .reply-post { margin-left: 30px; border-left: 3px solid #ddd; background: #fafafa; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 10px; border-top: 1px solid #ddd; box-sizing: border-box; }
         textarea { width: 100%; height: 50px; border: 1px solid #ccc; border-radius: 8px; padding: 8px; box-sizing: border-box; resize: none; }
-        .reply-banner { background: #e9ecef; padding: 5px 10px; font-size: 12px; display: none; justify-content: space-between; align-items: center; border-radius: 5px 5px 0 0; }
-        .reac-btn { text-decoration: none; background: #eee; padding: 4px 8px; border-radius: 15px; font-size: 12px; color: #333; margin-right: 5px; }
+        .reac-btn { text-decoration: none; background: #eee; padding: 4px 8px; border-radius: 15px; font-size: 12px; color: #333; }
+        .banner { background: #e9ecef; padding: 5px 10px; font-size: 12px; display: none; justify-content: space-between; border-radius: 5px 5px 0 0; }
     </style>
 </head>
 <body>
-
-<div class="header">
-    <a href="/class/{{ thread.class_id }}" style="text-decoration:none; color:#007bff;">← 戻る</a>
-    <strong style="margin-left:10px;">{{ thread.title }} ({{ post_count }}/500)</strong>
-</div>
-
-<div class="participants">
-    👥 参加者: {% for p in participants %}{{ p.username }}{% if not loop.last %}, {% endif %}{% else %}なし{% endfor %}
-</div>
-
+<div class="header"><a href="/class/{{ thread.class_id }}" style="text-decoration:none;">← 戻る</a> <strong>{{ thread.title }} ({{ post_count }}/500)</strong></div>
+<div style="background:#fff; padding:8px 15px; font-size:11px; color:#666; border-bottom:1px solid #eee;">👥 参加者: {% for p in participants %}{{ p.username }} {% endfor %}</div>
 <div id="post-list">
     {% for post in posts %}
-    <div class="post" id="post-{{ post.id }}">
+    <div class="post">
         <div style="font-size:11px; color:#888;"><strong>{{ post.author.username }}</strong> | {{ post.created_at.strftime('%H:%M') }}</div>
         <div style="white-space: pre-wrap; margin-top:5px;">{{ post.content }}</div>
-        
-        {% if post.image_path %}
-            {% set ext = post.image_path.split('.')[-1].lower() %}
-            {% if ext in ['mp4', 'mov', 'webm'] %}<video src="{{ url_for('uploaded_file', filename=post.image_path) }}" controls class="media"></video>
-            {% else %}<img src="{{ url_for('uploaded_file', filename=post.image_path) }}" class="media">{% endif %}
-        {% endif %}
-        
-        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items: center;">
-            <div>
-                {% for e, t in [('👍', 'thumbsup'), ('❤️', 'heart'), ('😆', 'smile')] %}
-                    {% set c = Reaction.query.filter_by(post_id=post.id, type=t).count() %}
-                    <a href="/react/{{ post.id }}/{{ t }}" class="reac-btn">{{ e }} {{ c if c > 0 else '' }}</a>
-                {% endfor %}
-                <button onclick="setReply({{ post.id }}, '{{ post.author.username }}')" style="background:none; border:1px solid #ccc; border-radius:10px; font-size:11px; cursor:pointer;">↩ 返信</button>
-            </div>
+        {% if post.image_path %}<img src="{{ url_for('uploaded_file', filename=post.image_path) }}" style="max-width:100%; border-radius:8px; margin-top:8px;">{% endif %}
+        <div style="margin-top:10px; display:flex; justify-content:space-between;">
+            <div>{% for e, t in [('👍', 'thumbsup'), ('❤️', 'heart'), ('😆', 'smile')] %}
+                {% set c = Reaction.query.filter_by(post_id=post.id, type=t).count() %}
+                <a href="/react/{{ post.id }}/{{ t }}" class="reac-btn">{{ e }} {{ c if c > 0 else '' }}</a>
+            {% endfor %}
+            <button onclick="setReply({{ post.id }}, '{{ post.author.username }}')" style="background:none; border:1px solid #ccc; border-radius:10px; font-size:11px; cursor:pointer;">↩ 返信</button></div>
             <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除？')" style="color:red; font-size:11px; text-decoration:none;">🗑</a>
         </div>
-
-        <!-- 子返信のループ -->
-        {% for reply in post.replies %}
-        <div class="post reply-box">
-            <div style="font-size:10px; color:#888;"><strong>{{ reply.author.username }}</strong> | {{ reply.created_at.strftime('%H:%M') }}</div>
-            <div style="font-size:13px; white-space: pre-wrap;">{{ reply.content }}</div>
-            <div style="text-align:right;"><a href="/delete_post/{{ reply.id }}" style="color:red; font-size:9px; text-decoration:none;">🗑</a></div>
-        </div>
-        {% endfor %}
+        {% for r in post.replies %}<div class="post reply-post"><div style="font-size:10px; color:#888;"><strong>{{ r.author.username }}</strong></div><div>{{ r.content }}</div></div>{% endfor %}
     </div>
     {% endfor %}
 </div>
-
 {% if post_count < 500 %}
 <div class="footer">
-    <div id="reply-banner" class="reply-banner">
-        <span id="reply-text"></span>
-        <button onclick="cancelReply()" style="border:none; background:none; cursor:pointer;">×</button>
-    </div>
-    <form method="POST" enctype="multipart/form-data" id="post-form">
-        <input type="hidden" name="parent_id" id="parent-id-input">
-        <textarea name="content" id="msg-area" placeholder="メッセージを入力..." required></textarea>
-        <div style="display:flex; gap:5px; margin-top:5px;">
-            <input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;">
-            <button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px; font-weight:bold;">送信</button>
-        </div>
+    <div id="banner" class="banner"><span id="banner-text"></span><button onclick="cancelReply()">×</button></div>
+    <form method="POST" enctype="multipart/form-data"><input type="hidden" name="parent_id" id="parent-input">
+        <textarea name="content" id="msg-area" placeholder="メッセージ..." required></textarea>
+        <div style="display:flex; gap:5px; margin-top:5px;"><input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;"><button type="submit" style="background:#007bff; color:#fff; border:none; padding:8px 15px; border-radius:5px;">送信</button></div>
     </form>
 </div>
-{% else %}
-<div class="footer" style="text-align:center; color:red; font-weight:bold; padding: 20px;">このスレッドは満杯(500件)です</div>
 {% endif %}
-
 <script>
-    // 返信のセット
-    function setReply(id, name) {
-        document.getElementById('parent-id-input').value = id;
-        document.getElementById('reply-text').innerText = name + " さんへの返信モード";
-        document.getElementById('reply-banner').style.display = "flex";
-        document.getElementById('msg-area').focus();
-    }
-    function cancelReply() {
-        document.getElementById('parent-id-input').value = "";
-        document.getElementById('reply-banner').style.display = "none";
-    }
-
-    // ブラウザ通知の設定
-    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-        Notification.requestPermission();
-    }
-
-    // 新着チェック
-    window.onload = function() {
+    function setReply(id, n) { document.getElementById('parent-input').value = id; document.getElementById('banner-text').innerText = n + "さんへ返信"; document.getElementById('banner').style.display = "flex"; document.getElementById('msg-area').focus(); }
+    function cancelReply() { document.getElementById('parent-input').value = ""; document.getElementById('banner').style.display = "none"; }
+    window.onload = () => {
         window.scrollTo(0, document.body.scrollHeight);
-        
-        let currentCount = {{ post_count }};
-        let lastCount = localStorage.getItem('last_cnt_{{ thread.id }}');
-        
-        if (lastCount && parseInt(lastCount) < currentCount && document.hidden) {
-            if (Notification.permission === "granted") {
-                new Notification("掲示板に新着があります！", { body: "{{ thread.title }}" });
-            }
-            document.title = "【新着！】" + "{{ thread.title }}";
-        }
-        localStorage.setItem('last_cnt_{{ thread.id }}', currentCount);
+        if (Notification.permission !== "granted") Notification.requestPermission();
+        let last = localStorage.getItem('cnt_{{ thread.id }}');
+        if (last && parseInt(last) < {{ post_count }} && document.hidden) { new Notification("新着あり: {{ thread.title }}"); }
+        localStorage.setItem('cnt_{{ thread.id }}', {{ post_count }});
     };
-
-    // 10秒おきに自動更新（入力中以外）
-    setInterval(() => {
-        if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') {
-            location.reload();
-        }
-    }, 5000);
+    setInterval(() => { if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') location.reload(); }, 10000);
 </script>
 </body>
 </html>
