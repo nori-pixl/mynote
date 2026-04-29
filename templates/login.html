@@ -1,15 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>ログイン</title></head>
-<body style="font-family:sans-serif; background:#f0f2f5; display:flex; justify-content:center; align-items:center; height:100vh;">
+<body style="font-family:sans-serif; background:#f0f2f5; display:flex; justify-content:center; align-items:center; height:100vh; margin: 0;">
     <div style="background:white; padding:30px; border-radius:12px; width:300px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-        <h2>ログイン</h2>
-        <form method="POST">
-            <input type="text" name="username" placeholder="名前" required style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
-            <input type="password" name="password" placeholder="パスワード" required style="width:100%; padding:10px; margin-bottom:15px; box-sizing:border-box;">
-            <button type="submit" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:6px; font-weight:bold;">ログイン</button>
+        <h2>クラスルーム ログイン</h2>
+        <form method="POST" id="login-form">
+            <input type="text" name="username" id="u" placeholder="名前" required style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
+            <input type="password" name="password" id="p" placeholder="パスワード" required style="width:100%; padding:10px; margin-bottom:15px; box-sizing:border-box;">
+            <button type="submit" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">ログイン</button>
         </form>
-        <p style="font-size:12px; margin-top:15px;">アカウントがない？ <a href="/signup">新規登録</a></p>
     </div>
+    <script>
+        window.onload = function() {
+            const savedU = localStorage.getItem('bbs_u');
+            const savedP = localStorage.getItem('bbs_p');
+            if(savedU && savedP) {
+                document.getElementById('u').value = savedU;
+                document.getElementById('p').value = savedP;
+                // サーバーのスリープで飛ばされてきた場合のみ自動送信
+                if (!document.referrer || document.referrer.includes(window.location.hostname)) {
+                    document.getElementById('login-form').submit();
+                }
+            }
+        };
+        document.getElementById('login-form').onsubmit = function() {
+            localStorage.setItem('bbs_u', document.getElementById('u').value);
+            localStorage.setItem('bbs_p', document.getElementById('p').value);
+        };
+    </script>
 </body>
 </html>
