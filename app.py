@@ -7,9 +7,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori-final-complete-2024'
+app.config['SECRET_KEY'] = 'nori-stable-final-v7'
 
-# データベース・保存先設定
+# 保存先設定
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(UPLOAD_FOLDER, 'bbs.db')
@@ -52,7 +52,9 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     thread_id = db.Column(db.Integer, db.ForeignKey('thread.id'))
+    parent_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     author = db.relationship('User', backref='user_posts')
+    replies = db.relationship('Post', backref=db.backref('parent', remote_side=[id]), cascade="all, delete")
     reactions = db.relationship('Reaction', backref='post_ref', cascade="all, delete")
 
 class Reaction(db.Model):
@@ -65,25 +67,20 @@ class Reaction(db.Model):
 def load_user(id): return User.query.get(int(id))
 
 # --- ルート設定 ---
-
 @app.route('/')
 @login_required
-def index():
-    return render_template('index.html')
+def index(): return render_template('index.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         u, p = request.form.get('username'), request.form.get('password')
-        if User.query.filter_by(username=u).first():
-            flash('その名前は使われています'); return redirect(url_for('signup'))
+        if User.query.filter_by(username=u).first(): return redirect(url_for('signup'))
         new_user = User(username=u, password=generate_password_hash(p))
         pub = Classroom.query.filter_by(code='PUBLIC').first()
         if not pub:
-            pub = Classroom(name='全員掲示板', code='PUBLIC')
-            db.session.add(pub); db.session.flush()
-        new_user.classrooms.append(pub)
-        db.session.add(new_user); db.session.commit()
+            pub = Classroom(name='全員掲示板', code='PUBLIC'); db.session.add(pub); db.session.flush()
+        new_user.classrooms.append(pub); db.session.add(new_user); db.session.commit()
         return redirect(url_for('login'))
     return render_template('signup.html')
 
@@ -94,7 +91,6 @@ def login():
         user = User.query.filter_by(username=u).first()
         if user and check_password_hash(user.password, p):
             login_user(user, remember=True); return redirect(url_for('index'))
-        flash('名前またはパスワードが違います')
     return render_template('login.html')
 
 @app.route('/class/<int:class_id>')
@@ -112,19 +108,18 @@ def thread_detail(thread_id):
     thread = Thread.query.get_or_404(thread_id)
     if thread.classroom_ref not in current_user.classrooms: return "Denied", 403
     post_count = Post.query.filter_by(thread_id=thread_id).count()
-    # 参加者（投稿したことがある人）の取得
-    p_ids = db.session.query(Post.user_id).filter(Post.thread_id==thread_id).distinct().all()
-    participants = [User.query.get(row[0]) for row in p_ids]
-    
     if request.method == 'POST':
         if post_count >= 500: return redirect(url_for('thread_detail', thread_id=thread_id))
-        c, f = request.form.get('content'), request.files.get('image'); fname = None
+        c = request.form.get('content')
+        parent_id = request.form.get('parent_id')
+        f = request.files.get('image'); fname = None
         if f and f.filename != '':
             fname = secure_filename(f.filename); f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-        db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id))
+        db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id, parent_id=parent_id if parent_id else None))
         db.session.commit(); return redirect(url_for('thread_detail', thread_id=thread.id))
-    
-    posts = Post.query.filter_by(thread_id=thread_id).order_by(Post.created_at.asc()).all()
+    p_ids = db.session.query(Post.user_id).filter(Post.thread_id==thread_id).distinct().all()
+    participants = [User.query.get(row[0]) for row in p_ids]
+    posts = Post.query.filter_by(thread_id=thread_id, parent_id=None).order_by(Post.created_at.asc()).all()
     return render_template('thread.html', thread=thread, posts=posts, Reaction=Reaction, post_count=post_count, participants=participants)
 
 @app.route('/manage_class', methods=['POST'])
@@ -136,8 +131,7 @@ def manage_class():
         if name:
             code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
             new_class = Classroom(name=name, code=code)
-            current_user.classrooms.append(new_class)
-            db.session.add(new_class); db.session.commit()
+            current_user.classrooms.append(new_class); db.session.add(new_class); db.session.commit()
     elif action == 'join':
         code = request.form.get('code').upper()
         target = Classroom.query.filter_by(code=code).first()
@@ -152,17 +146,17 @@ def create_thread(class_id):
     if t: db.session.add(Thread(title=t, class_id=class_id)); db.session.commit()
     return redirect(url_for('class_view', class_id=class_id))
 
-@app.route('/delete_thread/<int:thread_id>')
-@login_required
-def delete_thread(thread_id):
-    t = Thread.query.get_or_404(thread_id); cid = t.class_id
-    db.session.delete(t); db.session.commit(); return redirect(url_for('class_view', class_id=cid))
-
 @app.route('/delete_post/<int:post_id>')
 @login_required
 def delete_post(post_id):
     p = Post.query.get_or_404(post_id); tid = p.thread_id
     db.session.delete(p); db.session.commit(); return redirect(url_for('thread_detail', thread_id=tid))
+
+@app.route('/delete_thread/<int:thread_id>')
+@login_required
+def delete_thread(thread_id):
+    t = Thread.query.get_or_404(thread_id); cid = t.class_id
+    db.session.delete(t); db.session.commit(); return redirect(url_for('class_view', class_id=cid))
 
 @app.route('/delete_class/<int:class_id>')
 @login_required
@@ -187,5 +181,4 @@ def logout(): logout_user(); return redirect(url_for('login'))
 
 with app.app_context(): db.create_all()
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
