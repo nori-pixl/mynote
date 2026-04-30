@@ -1,7 +1,5 @@
 flask
 flask-sqlalchemy
 flask-login
-flask-socketio
-eventlet>=0.40.3
-psycopg2-binary
 gunicorn
+psycopg2-binary
