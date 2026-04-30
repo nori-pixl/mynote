@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori-ultimate-forever-v100'
+app.config['SECRET_KEY'] = 'nori-final-secure-v80'
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 
 # --- データベース設定 (Neon PostgreSQL) ---
@@ -16,7 +16,7 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///bbs.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024 # 15MB制限
+app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
 
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -32,17 +32,18 @@ subs = db.Table('subs',
     db.Column('classroom_id', db.Integer, db.ForeignKey('classroom.id'))
 )
 
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    fingerprint = db.Column(db.String(255), unique=True) # 1人1垢用
+    classrooms = db.relationship('Classroom', secondary=subs, backref=db.backref('members', lazy='dynamic'))
+
 class Classroom(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     code = db.Column(db.String(10), unique=True, nullable=False)
     threads = db.relationship('Thread', backref='classroom_ref', cascade="all, delete")
-
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
-    classrooms = db.relationship('Classroom', secondary=subs, backref=db.backref('members', lazy='dynamic'))
 
 class Thread(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,13 +62,6 @@ class Post(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey('post.id'))
     author = db.relationship('User', backref='user_posts')
     replies = db.relationship('Post', backref=db.backref('parent', remote_side=[id]), cascade="all, delete")
-    reactions = db.relationship('Reaction', backref='post_ref', cascade="all, delete")
-
-class Reaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(20))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
 
 @login_manager.user_loader
 def load_user(id): return User.query.get(int(id))
@@ -81,10 +75,16 @@ def index(): return render_template('index.html')
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        u, p = request.form.get('username'), request.form.get('password')
+        u = request.form.get('username')
+        p = request.form.get('password')
+        f_print = request.form.get('fingerprint')
+
+        if User.query.filter_by(fingerprint=f_print).first():
+            flash('この端末からは既に登録されています'); return redirect(url_for('signup'))
         if User.query.filter_by(username=u).first():
-            flash('名前が使われています'); return redirect(url_for('signup'))
-        new_user = User(username=u, password=generate_password_hash(p))
+            flash('その名前は使われています'); return redirect(url_for('signup'))
+        
+        new_user = User(username=u, password=generate_password_hash(p), fingerprint=f_print)
         pub = Classroom.query.filter_by(code='PUBLIC').first()
         if not pub:
             pub = Classroom(name='🌍 全員用ロビー', code='PUBLIC'); db.session.add(pub); db.session.flush()
@@ -101,30 +101,6 @@ def login():
             login_user(user, remember=True); return redirect(url_for('index'))
         return render_template('login.html', login_failed=True)
     return render_template('login.html')
-
-@app.route('/manage_class', methods=['POST'])
-@login_required
-def manage_class():
-    action = request.form.get('action')
-    if action == 'create':
-        name = request.form.get('name')
-        if name:
-            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-            new_class = Classroom(name=name, code=code)
-            current_user.classrooms.append(new_class); db.session.add(new_class)
-    elif action == 'join':
-        code = request.form.get('code').upper()
-        target = Classroom.query.filter_by(code=code).first()
-        if target and target not in current_user.classrooms: current_user.classrooms.append(target)
-    db.session.commit(); return redirect(url_for('index'))
-
-@app.route('/delete_class/<int:class_id>')
-@login_required
-def delete_class(class_id):
-    target = Classroom.query.get_or_404(class_id)
-    if target.code != 'PUBLIC':
-        db.session.delete(target); db.session.commit()
-    return redirect(url_for('index'))
 
 @app.route('/class/<int:class_id>')
 @login_required
@@ -148,7 +124,21 @@ def thread_detail(thread_id):
         db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id, parent_id=p_id if p_id else None))
         db.session.commit(); return redirect(url_for('thread_detail', thread_id=thread.id))
     posts = Post.query.filter_by(thread_id=thread_id, parent_id=None).order_by(Post.created_at.asc()).all()
-    return render_template('thread.html', thread=thread, posts=posts, Reaction=Reaction, post_count=post_count, now=datetime.now(), timedelta=timedelta)
+    return render_template('thread.html', thread=thread, posts=posts, post_count=post_count, now=datetime.now(), timedelta=timedelta)
+
+@app.route('/manage_class', methods=['POST'])
+@login_required
+def manage_class():
+    name, action = request.form.get('name'), request.form.get('action')
+    if action == 'create' and name:
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+        new_class = Classroom(name=name, code=code)
+        current_user.classrooms.append(new_class); db.session.add(new_class)
+    elif action == 'join':
+        code = request.form.get('code', '').upper()
+        target = Classroom.query.filter_by(code=code).first()
+        if target and target not in current_user.classrooms: current_user.classrooms.append(target)
+    db.session.commit(); return redirect(url_for('index'))
 
 @app.route('/create_thread/<int:class_id>', methods=['POST'])
 @login_required
@@ -156,6 +146,13 @@ def create_thread(class_id):
     t = request.form.get('title')
     if t: db.session.add(Thread(title=t, class_id=class_id)); db.session.commit()
     return redirect(url_for('class_view', class_id=class_id))
+
+@app.route('/delete_class/<int:class_id>')
+@login_required
+def delete_class(class_id):
+    c = Classroom.query.get_or_404(class_id)
+    if c.code != 'PUBLIC': db.session.delete(c); db.session.commit()
+    return redirect(url_for('index'))
 
 @app.route('/delete_thread/<int:thread_id>')
 @login_required
@@ -168,14 +165,6 @@ def delete_thread(thread_id):
 def delete_post(post_id):
     p = Post.query.get_or_404(post_id); tid = p.thread_id
     db.session.delete(p); db.session.commit(); return redirect(url_for('thread_detail', thread_id=tid))
-
-@app.route('/react/<int:post_id>/<string:reac_type>')
-@login_required
-def react(post_id, reac_type):
-    ex = Reaction.query.filter_by(user_id=current_user.id, post_id=post_id, type=reac_type).first()
-    if ex: db.session.delete(ex)
-    else: db.session.add(Reaction(user_id=current_user.id, post_id=post_id, type=reac_type))
-    db.session.commit(); return redirect(request.referrer)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename): return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
