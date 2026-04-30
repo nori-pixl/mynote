@@ -2,14 +2,18 @@
 <html lang="ja">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>新規登録</title></head>
 <body style="font-family:sans-serif; background:#f2f2f7; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
-    <div style="background:white; padding:30px; border-radius:16px; width:300px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+    <div style="background:white; padding:30px; border-radius:16px; width:300px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
         <h2>新規アカウント作成</h2>
-        <form method="POST">
+        {% with messages = get_flashed_messages() %}{% if messages %}<p style="color:red; font-size:12px;">{{ messages }}</p>{% endif %}{% endwith %}
+        <form method="POST" id="signup-form">
+            <input type="hidden" name="fingerprint" id="fingerprint">
             <input type="text" name="username" placeholder="名前" required style="width:100%; padding:12px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
             <input type="password" name="password" placeholder="パスワード" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
-            <button type="submit" style="width:100%; padding:12px; background:#34c759; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">登録する</button>
+            <button type="submit" style="width:100%; padding:12px; background:#34c759; color:white; border:none; border-radius:8px; font-weight:bold;">登録する</button>
         </form>
-        <p style="font-size:12px; margin-top:15px;"><a href="/login">ログイン画面に戻る</a></p>
     </div>
+    <script>
+        document.getElementById('fingerprint').value = btoa([navigator.userAgent, screen.height, screen.width, navigator.language].join('|')).substring(0, 32);
+    </script>
 </body>
 </html>
