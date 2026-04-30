@@ -9,14 +9,14 @@
         .member-scroll { display: flex; overflow-x: auto; padding: 12px; gap: 8px; background: #fff; border-bottom: 1px solid #d1d1d6; }
         .member-badge { white-space: nowrap; background: #e5e5ea; padding: 6px 14px; border-radius: 20px; font-size: 13px; }
         .member-badge::before { content: "●"; color: #34c759; margin-right: 4px; font-size: 10px; }
-        .create-box { background: white; padding: 16px; border-radius: 16px; margin: 16px; display: flex; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .create-box input { flex: 1; padding: 10px; border: 1px solid #d1d1d6; border-radius: 8px; }
+        .content { padding: 16px; max-width: 500px; margin: auto; }
+        .create-box { background: white; padding: 16px; border-radius: 16px; margin-bottom: 20px; display: flex; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .create-box input { flex: 1; padding: 10px; border: 1px solid #d1d1d6; border-radius: 8px; font-size: 15px; }
         .btn-add { background: #34c759; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; }
-        .thread-card { background: white; border-radius: 16px; margin: 0 16px 12px 16px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
-        .thread-link { flex: 1; padding: 20px; text-decoration: none; color: #1c1c1e; font-weight: bold; }
+        .thread-card { background: white; border-radius: 16px; margin-bottom: 12px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03); overflow: hidden; }
+        .thread-link { flex: 1; padding: 20px; text-decoration: none; color: #1c1c1e; font-weight: bold; font-size: 17px; }
         .pagination { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
         .pag-btn { text-decoration: none; background: #007aff; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; }
-        .pag-next { background: #8e8e93; }
     </style>
 </head>
 <body>
@@ -27,25 +27,22 @@
 <div class="member-scroll">
     {% for m in members %}<div class="member-badge">{{ m.username }}</div>{% endfor %}
 </div>
-<form action="/create_thread/{{ target_class.id }}" method="POST" class="create-box">
-    <input type="text" name="title" placeholder="新しいスレ..." required>
-    <button type="submit" class="btn-add">作成</button>
-</form>
-{% for t in threads %}
-<div class="thread-card">
-    <a href="/thread/{{ t.id }}" class="thread-link"># {{ t.title }}</a>
-    <a href="/delete_thread/{{ t.id }}" onclick="return confirm('削除？')" style="padding:16px; text-decoration:none; font-size:18px;">🗑</a>
+<div class="content">
+    <form action="/create_thread/{{ target_class.id }}" method="POST" class="create-box">
+        <input type="text" name="title" placeholder="新しい話題..." required>
+        <button type="submit" class="btn-add">作成</button>
+    </form>
+    {% for t in threads %}
+    <div class="thread-card">
+        <a href="/thread/{{ t.id }}" class="thread-link"># {{ t.title }}</a>
+        <a href="/delete_thread/{{ t.id }}" onclick="return confirm('削除？')" style="padding:16px; text-decoration:none; font-size:18px;">🗑</a>
+    </div>
+    {% endfor %}
+    <div class="pagination">
+        {% if pagination.has_prev %}<a href="{{ url_for('class_view', class_id=target_class.id, page=pagination.prev_num) }}" class="pag-btn">⬅ 前へ</a>{% endif %}
+        {% if pagination.has_next %}<a href="{{ url_for('class_view', class_id=target_class.id, page=pagination.next_num) }}" class="pag-btn" style="background:#8e8e93;">datalog {{ pagination.next_num }} ➡</a>{% endif %}
+    </div>
+    <footer style="text-align:center; color:#8e8e93; font-size:11px; margin-top:40px;">&copy; 2024 nori1213</footer>
 </div>
-{% endfor %}
-
-<div class="pagination">
-    {% if pagination.has_prev %}
-        <a href="{{ url_for('class_view', class_id=target_class.id, page=pagination.prev_num) }}" class="pag-btn">⬅ 前へ</a>
-    {% endif %}
-    {% if pagination.has_next %}
-        <a href="{{ url_for('class_view', class_id=target_class.id, page=pagination.next_num) }}" class="pag-btn pag-next">datalog {{ pagination.next_num }} ➡</a>
-    {% endif %}
-</div>
-<footer style="text-align:center; color:#8e8e93; font-size:11px; margin-top:20px;">&copy; 2024 nori1213. All Rights Reserved.</footer>
 </body>
 </html>
