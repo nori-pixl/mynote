@@ -1,13 +1,12 @@
 import os, random, string
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori-final-secure-v80'
+app.config['SECRET_KEY'] = 'nori-text-ultimate-v10'
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 
 # --- データベース設定 (Neon PostgreSQL) ---
@@ -16,11 +15,6 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///bbs.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
-
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -36,7 +30,6 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    fingerprint = db.Column(db.String(255), unique=True) # 1人1垢用
     classrooms = db.relationship('Classroom', secondary=subs, backref=db.backref('members', lazy='dynamic'))
 
 class Classroom(db.Model):
@@ -55,7 +48,6 @@ class Thread(db.Model):
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
-    image_path = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.now)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     thread_id = db.Column(db.Integer, db.ForeignKey('thread.id'))
@@ -67,7 +59,6 @@ class Post(db.Model):
 def load_user(id): return User.query.get(int(id))
 
 # --- ルート設定 ---
-
 @app.route('/')
 @login_required
 def index(): return render_template('index.html')
@@ -75,16 +66,9 @@ def index(): return render_template('index.html')
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        u = request.form.get('username')
-        p = request.form.get('password')
-        f_print = request.form.get('fingerprint')
-
-        if User.query.filter_by(fingerprint=f_print).first():
-            flash('この端末からは既に登録されています'); return redirect(url_for('signup'))
-        if User.query.filter_by(username=u).first():
-            flash('その名前は使われています'); return redirect(url_for('signup'))
-        
-        new_user = User(username=u, password=generate_password_hash(p), fingerprint=f_print)
+        u, p = request.form.get('username'), request.form.get('password')
+        if User.query.filter_by(username=u).first(): return redirect(url_for('signup'))
+        new_user = User(username=u, password=generate_password_hash(p))
         pub = Classroom.query.filter_by(code='PUBLIC').first()
         if not pub:
             pub = Classroom(name='🌍 全員用ロビー', code='PUBLIC'); db.session.add(pub); db.session.flush()
@@ -118,13 +102,10 @@ def thread_detail(thread_id):
     if request.method == 'POST':
         if post_count >= 500: return redirect(url_for('thread_detail', thread_id=thread.id))
         c, p_id = request.form.get('content'), request.form.get('parent_id')
-        f = request.files.get('image'); fname = None
-        if f and f.filename != '':
-            fname = secure_filename(f.filename); f.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-        db.session.add(Post(content=c, image_path=fname, user_id=current_user.id, thread_id=thread.id, parent_id=p_id if p_id else None))
+        db.session.add(Post(content=c, user_id=current_user.id, thread_id=thread.id, parent_id=p_id if p_id else None))
         db.session.commit(); return redirect(url_for('thread_detail', thread_id=thread.id))
     posts = Post.query.filter_by(thread_id=thread_id, parent_id=None).order_by(Post.created_at.asc()).all()
-    return render_template('thread.html', thread=thread, posts=posts, post_count=post_count, now=datetime.now(), timedelta=timedelta)
+    return render_template('thread.html', thread=thread, posts=posts, post_count=post_count)
 
 @app.route('/manage_class', methods=['POST'])
 @login_required
@@ -147,27 +128,11 @@ def create_thread(class_id):
     if t: db.session.add(Thread(title=t, class_id=class_id)); db.session.commit()
     return redirect(url_for('class_view', class_id=class_id))
 
-@app.route('/delete_class/<int:class_id>')
-@login_required
-def delete_class(class_id):
-    c = Classroom.query.get_or_404(class_id)
-    if c.code != 'PUBLIC': db.session.delete(c); db.session.commit()
-    return redirect(url_for('index'))
-
-@app.route('/delete_thread/<int:thread_id>')
-@login_required
-def delete_thread(thread_id):
-    t = Thread.query.get_or_404(thread_id); cid = t.class_id
-    db.session.delete(t); db.session.commit(); return redirect(url_for('class_view', class_id=cid))
-
 @app.route('/delete_post/<int:post_id>')
 @login_required
 def delete_post(post_id):
     p = Post.query.get_or_404(post_id); tid = p.thread_id
     db.session.delete(p); db.session.commit(); return redirect(url_for('thread_detail', thread_id=tid))
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename): return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/logout')
 def logout(): logout_user(); return redirect(url_for('login'))
