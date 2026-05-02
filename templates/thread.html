@@ -4,14 +4,13 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ thread.title }}</title>
     <style>
-        body { font-family: sans-serif; background: #f2f2f7; margin: 0; padding-bottom: 180px; }
+        body { font-family: sans-serif; background: #f2f2f7; margin: 0; padding-bottom: 120px; }
         .header { background: white; padding: 14px; border-bottom: 1px solid #d1d1d6; position: sticky; top: 0; z-index: 100; text-align: center; }
         .post { background: white; padding: 12px; border-radius: 14px; margin: 10px; max-width: 85%; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .reply-area { margin-left: 25px; background: #e5e5ea; border-radius: 10px; padding: 8px; font-size: 13px; margin-top: 5px; }
-        .media-link { display: inline-block; margin-top: 8px; color: #28a745; font-weight: bold; text-decoration: none; border: 1px solid #28a745; padding: 6px 12px; border-radius: 8px; font-size: 14px; }
         .footer { position: fixed; bottom: 0; width: 100%; background: white; padding: 12px; border-top: 1px solid #d1d1d6; box-sizing: border-box; }
-        textarea { width: 100%; height: 60px; border: 1px solid #d1d1d6; border-radius: 12px; padding: 10px; font-size: 16px; resize: none; }
-        .btn-send { background: #007bff; color: white; border: none; padding: 10px; border-radius: 20px; font-weight: bold; width: 100%; margin-top: 8px; }
+        textarea { width: 100%; height: 55px; border: 1px solid #d1d1d6; border-radius: 12px; padding: 10px; font-size: 16px; resize: none; outline: none; }
+        .btn-send { background: #007bff; color: white; border: none; padding: 10px; border-radius: 20px; font-weight: bold; width: 100%; margin-top: 6px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -25,19 +24,9 @@
     <div class="post">
         <div style="font-size:11px; color:#8e8e93; margin-bottom:4px;">{{ post.author.username }} | {{ post.created_at.strftime('%H:%M') }}</div>
         <div style="white-space: pre-wrap; font-size:16px;">{{ post.content }}</div>
-        
-        {# --- 24時間限定メディア表示ロジック --- #}
-        {% if post.image_path %}
-            {% if now - post.created_at < timedelta(hours=24) %}
-                <a href="{{ url_for('uploaded_file', filename=post.image_path) }}" target="_blank" class="media-link">📂 メディアを表示 (期間限定)</a>
-            {% else %}
-                <div style="margin-top:8px; font-size:11px; color:#8e8e93;">🔒 24時間経過により自動消滅しました</div>
-            {% endif %}
-        {% endif %}
-
-        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
-            <button onclick="setReply({{ post.id }}, '{{ post.author.username }}')" style="background:none; border:1px solid #ccc; border-radius:12px; font-size:11px; padding:4px 10px;">↩ 返信</button>
-            <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除？')" style="text-decoration:none; color:#ff3b30; font-size:12px;">🗑</a>
+        <div style="margin-top:8px; display:flex; justify-content:space-between;">
+            <button onclick="setReply({{ post.id }}, '{{ post.author.username }}')" style="background:none; border:1px solid #ccc; border-radius:12px; font-size:11px; padding:2px 8px;">↩ 返信</button>
+            <a href="/delete_post/{{ post.id }}" onclick="return confirm('削除しますか？')" style="text-decoration:none; color:#ff3b30; font-size:11px;">🗑</a>
         </div>
         {% for r in post.replies %}
             <div class="reply-area"><strong>{{ r.author.username }}</strong>: {{ r.content }}</div>
@@ -48,16 +37,13 @@
 
 {% if post_count < 500 %}
 <div class="footer">
-    <div id="reply-banner" style="display:none; background:#eee; padding:6px; border-radius:6px; margin-bottom:6px; font-size:12px; justify-content:space-between;">
-        <span id="reply-text"></span><button onclick="cancelReply()" style="border:none; background:none;">×</button>
+    <div id="reply-banner" style="display:none; background:#eee; padding:6px; border-radius:6px; margin-bottom:4px; font-size:12px; justify-content:space-between; align-items:center;">
+        <span id="reply-text"></span><button onclick="cancelReply()" style="border:none; background:none; font-size:16px;">×</button>
     </div>
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST">
         <input type="hidden" name="parent_id" id="parent-input">
         <textarea name="content" id="msg-area" placeholder="メッセージを入力..." required></textarea>
-        <div style="display:flex; gap:10px; margin-top:8px;">
-            <input type="file" name="image" accept="image/*,video/*" style="font-size:11px; flex:1;">
-            <button type="submit" class="btn-send" style="flex:1;">送信</button>
-        </div>
+        <button type="submit" class="btn-send">送信</button>
     </form>
 </div>
 {% else %}
@@ -65,10 +51,20 @@
 {% endif %}
 
 <script>
-    function setReply(id, n) { document.getElementById('parent-input').value = id; document.getElementById('reply-text').innerText = n + "さんへ返信中"; document.getElementById('reply-banner').style.display = "flex"; document.getElementById('msg-area').focus(); }
-    function cancelReply() { document.getElementById('parent-input').value = ""; document.getElementById('reply-banner').style.display = "none"; }
+    function setReply(id, n) { 
+        document.getElementById('parent-input').value = id; 
+        document.getElementById('reply-text').innerText = n + " さんに返信中"; 
+        document.getElementById('reply-banner').style.display = "flex"; 
+        document.getElementById('msg-area').focus(); 
+    }
+    function cancelReply() { 
+        document.getElementById('parent-input').value = ""; 
+        document.getElementById('reply-banner').style.display = "none"; 
+    }
     window.onload = () => { window.scrollTo(0, document.body.scrollHeight); };
-    setInterval(() => { if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') location.reload(); }, 20000);
+    setInterval(() => { 
+        if(!document.getElementById('msg-area').value && document.activeElement.tagName !== 'TEXTAREA') location.reload(); 
+    }, 15000);
 </script>
 </body>
 </html>
