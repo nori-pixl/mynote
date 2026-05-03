@@ -6,22 +6,21 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'nori-ultimate-tablet-bbs'
+app.config['SECRET_KEY'] = 'nori-final-bbs-2024'
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=365)
 
-# --- データベース設定（あなたのタブレットに繋ぐ） ---
-DATABASE_URL = os.environ.get('DATABASE_URL')
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+# --- データベース設定 ---
+uri = os.environ.get('DATABASE_URL')
+if uri and uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# --- データベースモデル（全機能維持） ---
+# --- モデル定義 ---
 subs = db.Table('subs',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
     db.Column('classroom_id', db.Integer, db.ForeignKey('classroom.id'))
@@ -59,7 +58,7 @@ class Post(db.Model):
 @login_manager.user_loader
 def load_user(id): return User.query.get(int(id))
 
-# --- ルート設定（全機能維持） ---
+# --- ルート ---
 @app.route('/')
 @login_required
 def index(): return render_template('index.html')
